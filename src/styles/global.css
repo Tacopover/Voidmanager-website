@@ -28,6 +28,12 @@ body {
   line-height: 1.5;
 }
 
+/* Root container must be flex-column so the viewer main can grow to fill height. */
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
 .app-nav {
   display: flex;
   align-items: center;
@@ -61,6 +67,16 @@ body {
   padding: 2rem 1.5rem;
   max-width: 920px;
   margin: 0 auto;
+}
+
+/* Viewer route: full-bleed, fills remaining height below the nav bar. */
+.app-main--viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  overflow: hidden;
 }
 
 .home__lead {

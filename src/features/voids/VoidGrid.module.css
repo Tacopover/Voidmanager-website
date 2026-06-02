@@ -1,0 +1,120 @@
+/* VoidGrid layout + chrome */
+
+.gridWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Toolbar above the grid */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  flex-shrink: 0;
+}
+
+.summary {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Grid container: fills remaining height */
+.gridContainer {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  overflow: hidden;
+}
+
+/* Column chooser button */
+.chooserWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chooserBtn {
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chooserBtn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* Dropdown panel */
+.chooserDropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 50;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  min-width: 190px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.chooserSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.chooserItem {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.1rem 0;
+}
+
+.chooserItem input[type='checkbox'] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.chooserDivider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.4rem 0;
+}
+
+.chooserClose {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.2rem;
+  font-size: 0.78rem;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+}
+
+.chooserClose:hover {
+  color: var(--text);
+}

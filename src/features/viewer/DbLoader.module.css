@@ -1,0 +1,105 @@
+/* DbLoader — loading / connect screen */
+
+.loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 2rem;
+}
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 2.5rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+.title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  color: var(--text);
+}
+
+.desc {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  margin: 0 0 1.25rem;
+  line-height: 1.6;
+}
+
+.path {
+  background: #1e2736;
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  color: var(--text);
+}
+
+.fallbackNote {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.connectBtn {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--accent);
+  color: #0f1117;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+
+.connectBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.connectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fallbackRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.orLabel {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.fileInput {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.hint {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.errorMsg {
+  margin-top: 0.75rem;
+  color: #f87171;
+  font-size: 0.85rem;
+  text-align: left;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+}
