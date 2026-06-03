@@ -45,6 +45,9 @@ export default function Viewer() {
   // Badge: FS Access vs fallback
   const [canWriteBack, setCanWriteBack] = useState(false);
 
+  // Selected void IDs (grid → 3D sync)
+  const [selectedVoidIds, setSelectedVoidIds] = useState<number[]>([]);
+
   // -------------------------------------------------------------------------
   // Load voids for a project
   // -------------------------------------------------------------------------
@@ -112,11 +115,12 @@ export default function Viewer() {
   }
 
   // -------------------------------------------------------------------------
-  // Selection change (grid → 3D, future M2 hook)
+  // Selection change (grid → 3D)
   // -------------------------------------------------------------------------
   function handleVoidSelectionChange(rows: VoidRow[]) {
-    // TODO (M2): pass selected row IDs to the 3D viewer for highlight + fit-to-element
-    console.debug('[Viewer] void selection changed', rows.length, 'rows');
+    const ids = rows.map((r) => r.id);
+    setSelectedVoidIds(ids);
+    console.debug('[Viewer] void selection changed', ids.length, 'rows');
   }
 
   // -------------------------------------------------------------------------
@@ -180,9 +184,9 @@ export default function Viewer() {
         </span>
       </div>
 
-      {/* 3D viewer — M2 Stage A */}
+      {/* 3D viewer — M2 Stage B2 */}
       <div className={styles.threeDPane}>
-        <ThreeDViewer />
+        <ThreeDViewer voids={voids} selectedVoidIds={selectedVoidIds} />
       </div>
 
       {/* Void grid */}

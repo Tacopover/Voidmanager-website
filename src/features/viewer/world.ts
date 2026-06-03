@@ -17,6 +17,11 @@
 
 import * as THREE from 'three';
 import * as OBC from '@thatopen/components';
+import type { VoidRow } from '../../data/VoidRepository';
+import { buildVoidMeshes, setVoidHighlight } from './voidMeshes';
+import { buildIfcIndex, resolveVoidToElement } from '../../lib/ifcIndex';
+import type { IfcIndex } from '../../lib/ifcIndex';
+import * as FRAGS from '@thatopen/fragments';
 
 export interface LoadedModel {
   /** The fragments model id (set as the `name` parameter to ifcLoader.load) */
@@ -33,8 +38,23 @@ export interface LoadProgress {
 export interface WorldController {
   /** Load an IFC file from raw bytes. Returns info about the loaded model. */
   loadIfc(bytes: Uint8Array, name: string, onProgress?: (p: LoadProgress) => void): Promise<LoadedModel>;
-  /** Stage B hook — TODO: highlight / fit-to elements by their IFC express IDs */
-  highlightByExpressIds(_modelId: string, _expressIds: number[]): void;
+  /**
+   * Set (or replace) the void meshes in the scene.
+   * Clears any previously built group, builds new meshes, and adds them.
+   * If an IFC model is loaded, also refreshes the IfcIndex and precomputes
+   * void→element matches.
+   */
+  setVoids(voids: VoidRow[]): Promise<void>;
+  /**
+   * Sync 3D highlight to the given selection.
+   * For voids that resolve to an IFC element: highlight the element via the
+   * fragments API.  For the rest: highlight their fallback mesh.
+   * Un-highlights previously selected voids.
+   * Fits the camera to the bounding sphere of all highlighted objects.
+   */
+  setSelectedVoids(voidIds: number[]): Promise<void>;
+  /** Number of void meshes currently in the scene (0 until setVoids is called). */
+  getVoidMeshCount(): number;
   /** Dispose all GPU/WebGL resources and OBC components. */
   dispose(): void;
 }
@@ -148,6 +168,37 @@ export async function createWorldController(container: HTMLDivElement): Promise<
   const boxer = components.get(OBC.BoundingBoxer);
 
   // ------------------------------------------------------------------
+  // 6. Stage B2 state
+  // ------------------------------------------------------------------
+
+  /**
+   * The current void group in the scene (null before setVoids is called).
+   * Replace by removing the old group and adding a new one.
+   */
+  let voidGroup: THREE.Group | null = null;
+
+  /**
+   * Map from void.id → mesh for the current void group.
+   * Empty before setVoids is called.
+   */
+  let voidMeshMap = new Map<number, THREE.Mesh>();
+
+  /**
+   * Map from void.id → IFC element localId, for voids that matched.
+   * Populated by setVoids when an IFC model is loaded.
+   */
+  let voidToElement = new Map<number, number>();
+
+  /** The ID of the currently loaded fragments model (null if none). */
+  let loadedModelId: string | null = null;
+
+  /** Current IfcIndex (null until an IFC is loaded). */
+  let ifcIndex: IfcIndex | null = null;
+
+  /** IDs of the currently highlighted voids (for un-highlight on next call). */
+  let highlightedVoidIds: number[] = [];
+
+  // ------------------------------------------------------------------
   // Controller implementation
   // ------------------------------------------------------------------
   async function loadIfc(
@@ -165,6 +216,8 @@ export async function createWorldController(container: HTMLDivElement): Promise<
       },
     });
 
+    loadedModelId = model.modelId ?? name;
+
     // Count elements via FragmentsModel.getLocalIds() → Promise<number[]>
     let elementCount = 0;
     try {
@@ -173,6 +226,20 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     } catch {
       // Fallback: count via visible mesh children
       elementCount = model.object.children.length;
+    }
+
+    // Build IfcIndex for void→element resolution
+    try {
+      ifcIndex = await buildIfcIndex(model);
+      console.debug('[world] IfcIndex built:', ifcIndex.byGlobalId.size, 'globalIds,', ifcIndex.byElementId.size, 'elementIds');
+    } catch (e) {
+      console.warn('[world] buildIfcIndex failed:', e);
+      ifcIndex = null;
+    }
+
+    // Refresh void→element matches if voids are already loaded
+    if (voidMeshMap.size > 0 && ifcIndex) {
+      _refreshVoidElementMatches();
     }
 
     // Fit camera to the loaded model
@@ -195,10 +262,174 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     return { id: name, elementCount };
   }
 
-  function highlightByExpressIds(_modelId: string, _expressIds: number[]): void {
-    // TODO (Stage B): implement highlight + fit-to-elements using
-    // fragments.highlight() / boxer.addFromModelIdMap() + fitToSphere
-    console.debug('[world] highlightByExpressIds stub — Stage B will implement this');
+  /**
+   * Precompute void→element matches using the current IfcIndex.
+   * Called after either loadIfc or setVoids completes.
+   */
+  function _refreshVoidElementMatches(): void {
+    if (!ifcIndex) return;
+    voidToElement.clear();
+    // We iterate the mesh map keys to get the current set of void IDs,
+    // but we need the VoidRow objects to resolve.  We keep a parallel
+    // array of the current voids for this purpose.
+    for (const [voidId, _mesh] of voidMeshMap) {
+      const voidRow = _currentVoids.find((v) => v.id === voidId);
+      if (!voidRow) continue;
+      const elementId = resolveVoidToElement(voidRow, ifcIndex);
+      if (elementId !== null) {
+        voidToElement.set(voidId, elementId);
+      }
+    }
+    console.debug('[world] void→element matches:', voidToElement.size, 'of', voidMeshMap.size);
+  }
+
+  /** Kept in sync by setVoids — needed for resolveVoidToElement lookups. */
+  const _currentVoids: VoidRow[] = [];
+
+  async function setVoids(voids: VoidRow[]): Promise<void> {
+    // Remove old void group from the scene
+    if (voidGroup) {
+      world.scene.three.remove(voidGroup);
+      voidGroup = null;
+    }
+    voidMeshMap = new Map();
+    voidToElement = new Map();
+    highlightedVoidIds = [];
+
+    // Keep a copy for later resolution
+    _currentVoids.length = 0;
+    _currentVoids.push(...voids);
+
+    const { group, byVoidId, skippedCount } = buildVoidMeshes(voids);
+    console.debug(
+      `[world] setVoids: ${byVoidId.size} meshes built, ${skippedCount} garbage skipped`,
+    );
+
+    voidGroup = group;
+    voidMeshMap = byVoidId;
+    world.scene.three.add(voidGroup);
+
+    // Precompute void→element matches if an IFC model is already loaded
+    if (ifcIndex) {
+      _refreshVoidElementMatches();
+    }
+  }
+
+  async function setSelectedVoids(voidIds: number[]): Promise<void> {
+    // --- Un-highlight previously selected voids ---
+
+    // Collect element localIds that were highlighted via IFC API
+    const prevElementIds = highlightedVoidIds
+      .map((id) => voidToElement.get(id))
+      .filter((id): id is number => id !== undefined);
+
+    // Un-highlight IFC elements
+    if (prevElementIds.length > 0 && loadedModelId) {
+      const model = fragments.list.get(loadedModelId);
+      if (model) {
+        try {
+          await model.resetHighlight(prevElementIds);
+          fragments.core.update(true);
+        } catch (e) {
+          console.warn('[world] resetHighlight failed:', e);
+        }
+      }
+    }
+
+    // Un-highlight fallback meshes
+    for (const prevId of highlightedVoidIds) {
+      if (!voidToElement.has(prevId)) {
+        const mesh = voidMeshMap.get(prevId);
+        if (mesh) setVoidHighlight(mesh, false);
+      }
+    }
+
+    highlightedVoidIds = [...voidIds];
+
+    if (voidIds.length === 0) return;
+
+    // --- Highlight newly selected voids ---
+
+    // Separate voids into "has IFC element" and "mesh-only"
+    const elementIds: number[] = [];
+    const meshOnlyIds: number[] = [];
+    for (const id of voidIds) {
+      const elemId = voidToElement.get(id);
+      if (elemId !== undefined) {
+        elementIds.push(elemId);
+      } else {
+        meshOnlyIds.push(id);
+      }
+    }
+
+    // Highlight IFC elements via fragments API
+    // API confirmed via Context7: model.highlight(localIds, material) + fragments.update(true)
+    if (elementIds.length > 0 && loadedModelId) {
+      const model = fragments.list.get(loadedModelId);
+      if (model) {
+        try {
+          await model.highlight(elementIds, {
+            color: new THREE.Color(0xfbbf24), // amber-400
+            renderedFaces: FRAGS.RenderedFaces.TWO,
+            opacity: 0.85,
+            transparent: true,
+          });
+          fragments.core.update(true);
+        } catch (e) {
+          console.warn('[world] model.highlight failed:', e);
+        }
+      }
+    }
+
+    // Highlight fallback meshes
+    for (const id of meshOnlyIds) {
+      const mesh = voidMeshMap.get(id);
+      if (mesh) setVoidHighlight(mesh, true);
+    }
+
+    // --- Fit camera to all highlighted objects ---
+    try {
+      const fitBox = new THREE.Box3();
+
+      // Add bounding boxes of highlighted IFC elements
+      if (elementIds.length > 0 && loadedModelId) {
+        try {
+          boxer.list.clear();
+          const modelIdMap: Record<string, Set<number>> = {
+            [loadedModelId]: new Set(elementIds),
+          };
+          await boxer.addFromModelIdMap(modelIdMap);
+          const box = boxer.get();
+          boxer.list.clear();
+          if (!box.isEmpty()) fitBox.union(box);
+        } catch (e) {
+          console.warn('[world] boxer.addFromModelIdMap failed:', e);
+        }
+      }
+
+      // Add bounding boxes of highlighted fallback meshes
+      for (const id of meshOnlyIds) {
+        const mesh = voidMeshMap.get(id);
+        if (mesh) {
+          const meshBox = new THREE.Box3().setFromObject(mesh);
+          if (!meshBox.isEmpty()) fitBox.union(meshBox);
+        }
+      }
+
+      if (!fitBox.isEmpty()) {
+        const sphere = new THREE.Sphere();
+        fitBox.getBoundingSphere(sphere);
+        // Ensure the sphere is large enough to be visible
+        if (sphere.radius < 0.01) sphere.radius = 0.5;
+        await world.camera.controls.fitToSphere(sphere, true);
+      }
+    } catch (e) {
+      console.warn('[world] camera fit-to-selection failed:', e);
+    }
+  }
+
+  function getVoidMeshCount(): number {
+    return voidMeshMap.size;
   }
 
   function dispose(): void {
@@ -209,5 +440,5 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     }
   }
 
-  return { loadIfc, highlightByExpressIds, dispose };
+  return { loadIfc, setVoids, setSelectedVoids, getVoidMeshCount, dispose };
 }

@@ -7,10 +7,12 @@
  *   for Playwright E2E testing.
  * - Show load progress + error states.
  * - Report element count via data-testid="ifc-status" for E2E assertions.
+ * - Accept `voids` + `selectedVoidIds` props; forward to WorldController.
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createWorldController, type WorldController, type LoadedModel } from './world';
+import type { VoidRow } from '../../data/VoidRepository';
 import styles from './ThreeDViewer.module.css';
 
 // ---------------------------------------------------------------------------
@@ -26,15 +28,36 @@ type ViewerStatus =
   | { tag: 'error'; message: string };
 
 // ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+export interface ThreeDViewerProps {
+  /**
+   * All void rows currently loaded from the DB.
+   * When this array changes (DB load / project filter), void meshes are
+   * rebuilt in the scene.
+   */
+  voids?: VoidRow[];
+  /**
+   * IDs of the voids currently selected in the grid.
+   * Drives highlight + camera fit.
+   */
+  selectedVoidIds?: number[];
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-export default function ThreeDViewer() {
+export default function ThreeDViewer({ voids = [], selectedVoidIds = [] }: ThreeDViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<WorldController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<ViewerStatus>({ tag: 'idle' });
   const initPromiseRef = useRef<Promise<void> | null>(null);
+  const [voidMeshCount, setVoidMeshCount] = useState(0);
+  // Tracks whether the WorldController is ready to accept setVoids calls.
+  const [worldReady, setWorldReady] = useState(false);
 
   // -------------------------------------------------------------------------
   // Initialize OBC world on mount, dispose on unmount
@@ -52,6 +75,7 @@ export default function ThreeDViewer() {
       try {
         const ctrl = await createWorldController(container);
         controllerRef.current = ctrl;
+        setWorldReady(true);
         setStatus({ tag: 'ready' });
       } catch (e) {
         console.error('[ThreeDViewer] init failed', e);
@@ -66,10 +90,46 @@ export default function ThreeDViewer() {
         controllerRef.current = null;
       }
       initPromiseRef.current = null;
+      setWorldReady(false);
     };
     // Run only once on mount — container ref is stable
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // -------------------------------------------------------------------------
+  // Sync voids → world when voids change OR when world first becomes ready
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!worldReady) return;
+    const ctrl = controllerRef.current;
+    if (!ctrl) return;
+    void (async () => {
+      try {
+        await ctrl.setVoids(voids);
+        setVoidMeshCount(ctrl.getVoidMeshCount());
+      } catch (e) {
+        console.warn('[ThreeDViewer] setVoids failed', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voids, worldReady]);
+
+  // -------------------------------------------------------------------------
+  // Sync selected void IDs → world highlight
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!worldReady) return;
+    const ctrl = controllerRef.current;
+    if (!ctrl) return;
+    void (async () => {
+      try {
+        await ctrl.setSelectedVoids(selectedVoidIds);
+      } catch (e) {
+        console.warn('[ThreeDViewer] setSelectedVoids failed', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedVoidIds, worldReady]);
 
   // -------------------------------------------------------------------------
   // Load IFC handler (shared by button and file input)
@@ -144,6 +204,7 @@ export default function ThreeDViewer() {
       <div className={styles.toolbar}>
         {/* Load IFC button */}
         <button
+          type="button"
           className={styles.loadBtn}
           onClick={handleLoadButtonClick}
           disabled={isLoading || !canLoad}
@@ -169,6 +230,14 @@ export default function ThreeDViewer() {
           data-testid="ifc-status"
         >
           {statusText()}
+        </span>
+
+        {/* Void mesh + selection status for E2E assertions */}
+        <span
+          className={styles.statusBadge}
+          data-testid="void-mesh-status"
+        >
+          {`voids: ${voidMeshCount} · selected: ${selectedVoidIds.length}`}
         </span>
       </div>
 

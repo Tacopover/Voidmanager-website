@@ -6,6 +6,10 @@ const BASE_URL = 'http://localhost:5173/Voidmanager-website/';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // Cap workers so concurrent WebGL (SwiftShader) contexts don't starve each
+  // other during headless Chromium test runs.  The 3D viewer tests are the
+  // bottleneck: each spins up OBC + Three.js which needs a few seconds of CPU.
+  workers: process.env.CI ? 1 : 2,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [['html', { open: 'never' }]],
