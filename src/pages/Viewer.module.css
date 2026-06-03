@@ -82,22 +82,15 @@
   border: 1px solid var(--border);
 }
 
-/* 3D view placeholder */
+/* 3D viewer pane — real Three.js canvas (M2 Stage A) */
 .threeDPane {
-  height: 220px;
+  height: 420px;
   flex-shrink: 0;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-top: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.threeDLabel {
-  font-size: 0.9rem;
-  color: var(--text-dim);
-  font-style: italic;
+  position: relative;
+  overflow: hidden;
 }
 
 /* Grid pane fills the rest */

@@ -8,6 +8,7 @@
 
 import { useCallback, useState } from 'react';
 import DbLoader from '../features/viewer/DbLoader';
+import ThreeDViewer from '../features/viewer/ThreeDViewer';
 import VoidGrid from '../features/voids/VoidGrid';
 import { createLocalRepository } from '../data/sqlEngine';
 import type { VoidRepository, VoidRow, ProjectSummary } from '../data/VoidRepository';
@@ -179,9 +180,9 @@ export default function Viewer() {
         </span>
       </div>
 
-      {/* 3D viewer placeholder (M2) */}
+      {/* 3D viewer — M2 Stage A */}
       <div className={styles.threeDPane}>
-        <span className={styles.threeDLabel}>3D viewer (coming in M2)</span>
+        <ThreeDViewer />
       </div>
 
       {/* Void grid */}
