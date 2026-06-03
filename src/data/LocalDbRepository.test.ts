@@ -153,6 +153,31 @@ describe.skipIf(!fixtureExists)('LocalDbRepository — fixture (fixtures/sample.
       // There should be at least as many (or more) voids when including closed.
       expect(all.length).toBeGreaterThanOrEqual(open.length);
     });
+
+    it('direction resolves to finite numbers for at least most voids', async () => {
+      const voids = await repo.listVoids({ includeClosed: true });
+      const withDirection = voids.filter((v) => v.direction !== null);
+      // Expect at least 50% of voids to have a decodable direction.
+      expect(withDirection.length).toBeGreaterThanOrEqual(Math.floor(voids.length * 0.5));
+      for (const v of withDirection) {
+        expect(isFinite(v.direction!.x)).toBe(true);
+        expect(isFinite(v.direction!.y)).toBe(true);
+        expect(isFinite(v.direction!.z)).toBe(true);
+      }
+    });
+
+    it('direction field is present on all VoidRow objects (null or object)', async () => {
+      const voids = await repo.listVoids({ includeClosed: true });
+      for (const v of voids) {
+        // direction must be either null or a {x, y, z} object — never undefined
+        expect('direction' in v).toBe(true);
+        if (v.direction !== null) {
+          expect(typeof v.direction.x).toBe('number');
+          expect(typeof v.direction.y).toBe('number');
+          expect(typeof v.direction.z).toBe('number');
+        }
+      }
+    });
   });
 
   // ---- Story & project scoping -----------------------------------------------

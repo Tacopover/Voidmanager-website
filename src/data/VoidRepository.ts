@@ -58,6 +58,13 @@ export interface VoidRow {
    * Null when the Point3D row or its coordinate references are missing.
    */
   location: { x: number; y: number; z: number } | null;
+  /**
+   * Void extrusion direction (unit vector, Revit internal units) decoded from
+   * Vector3D → D_NumericOneDecimal X/Y/Z.
+   * Null when the Vector3D row or its coordinate references are missing.
+   * Used by Stage B2 to orient fallback void meshes.
+   */
+  direction: { x: number; y: number; z: number } | null;
   /** Sequence / zone name (D_SequenceName value), or null. */
   sequenceName: string | null;
   /**

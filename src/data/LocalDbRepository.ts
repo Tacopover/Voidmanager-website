@@ -98,13 +98,14 @@ export class LocalDbRepository implements VoidRepository {
     assertTable(this.db, TABLE.user, ['ID', 'EmailAddress']);
     assertTable(this.db, TABLE.voidCircle, [
       'ID', 'HostId', 'IsValid', 'IsClosed', 'ExternalId', 'AssignedTo',
-      'StatusOfApproval', 'Location', 'Thickness', 'Diameter', 'SequenceName',
+      'StatusOfApproval', 'Location', 'Direction', 'Thickness', 'Diameter', 'SequenceName',
     ]);
     assertTable(this.db, TABLE.voidRectangle, [
       'ID', 'HostId', 'IsValid', 'IsClosed', 'ExternalId', 'AssignedTo',
-      'StatusOfApproval', 'Location', 'Thickness', 'Width', 'Height', 'SequenceName',
+      'StatusOfApproval', 'Location', 'Direction', 'Thickness', 'Width', 'Height', 'SequenceName',
     ]);
     assertTable(this.db, TABLE.point3D, ['ID', 'X', 'Y', 'Z']);
+    assertTable(this.db, TABLE.vector3D, ['ID', 'X', 'Y', 'Z']);
     assertTable(this.db, DICT.boolean, ['ID', 'Value']);
     assertTable(this.db, DICT.statusOfApproval, ['ID', 'Value']);
     assertTable(this.db, DICT.guid, ['ID', 'Value']);
@@ -294,6 +295,7 @@ export class LocalDbRepository implements VoidRepository {
         v.AssignedTo  AS assignedToRef,
         v.StatusOfApproval AS statusRef,
         v.Location    AS locationRef,
+        v.Direction   AS directionRef,
         v.Thickness   AS thicknessRef,
         v.SequenceName AS seqRef,
         ${sizeColumns}
@@ -361,6 +363,9 @@ export class LocalDbRepository implements VoidRepository {
     // --- location ---
     const location = this.#decodeLocation(raw.locationRef as number | null);
 
+    // --- direction ---
+    const direction = this.#decodeDirection(raw.directionRef as number | null);
+
     // --- sizes (D_NumericOneDecimalUnsigned) ---
     const sizeMm: VoidRow['sizeMm'] = {};
     if (raw.diameterRef != null) {
@@ -397,6 +402,7 @@ export class LocalDbRepository implements VoidRepository {
       sizeMm,
       thicknessMm,
       location,
+      direction,
       sequenceName,
       isClosed,
     };
@@ -424,6 +430,32 @@ export class LocalDbRepository implements VoidRepository {
     return { x: xVal as number, y: yVal as number, z: zVal as number };
   }
 
+  /**
+   * Resolve a Vector3D ID to x/y/z components via D_NumericOneDecimal.
+   * Vector3D has the same (ID, X, Y, Z) shape as Point3D; X/Y/Z are refs
+   * into D_NumericOneDecimal (signed Revit internal units).
+   */
+  #decodeDirection(directionRef: number | null): { x: number; y: number; z: number } | null {
+    if (directionRef == null) return null;
+    const vecs = query(
+      this.db,
+      `SELECT v.X, v.Y, v.Z,
+              nx.Value AS xVal,
+              ny.Value AS yVal,
+              nz.Value AS zVal
+       FROM "${TABLE.vector3D}" v
+       LEFT JOIN "${DICT.numericOneDecimal}" nx ON nx.ID = v.X
+       LEFT JOIN "${DICT.numericOneDecimal}" ny ON ny.ID = v.Y
+       LEFT JOIN "${DICT.numericOneDecimal}" nz ON nz.ID = v.Z
+       WHERE v.ID = ?`,
+      [directionRef],
+    );
+    if (!vecs[0]) return null;
+    const { xVal, yVal, zVal } = vecs[0];
+    if (xVal == null || yVal == null || zVal == null) return null;
+    return { x: xVal as number, y: yVal as number, z: zVal as number };
+  }
+
   /** Look up a value from D_NumericOneDecimalUnsigned by ID. */
   #lookupUnsigned(id: number): number | null {
     const rows = query(
@@ -445,6 +477,7 @@ interface RawVoidRow extends Row {
   externalIdRef: number | null;
   assignedToRef: number | null;
   locationRef: number | null;
+  directionRef: number | null;
   thicknessRef: number | null;
   diameterRef: number | null;
   widthRef: number | null;
