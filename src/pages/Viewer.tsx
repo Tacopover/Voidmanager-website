@@ -42,6 +42,9 @@ export default function Viewer() {
   const [voidsLoading, setVoidsLoading] = useState(false);
   const [voidsError, setVoidsError] = useState<string | null>(null);
 
+  // Inline error banner for DB-load failures (replaces alert())
+  const [dbError, setDbError] = useState<string | null>(null);
+
   // Include-closed toggle (lifted here so it can trigger a reload)
   const [includeClosed, setIncludeClosed] = useState(false);
 
@@ -151,9 +154,9 @@ export default function Viewer() {
       setPhase({ tag: 'ready', repo, canWriteBack: wb });
       await loadVoids(repo, null, false);
     } catch (e) {
-      // Fall back to needsDb with an error — surface it via alert for now.
+      // Fall back to needsDb with an inline error banner (no alert()).
       console.error('[Viewer] DB load failed', e);
-      alert(`Failed to open database: ${e instanceof Error ? e.message : String(e)}`);
+      setDbError(`Failed to open database: ${e instanceof Error ? e.message : String(e)}`);
       setPhase({ tag: 'needsDb' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -266,6 +269,22 @@ export default function Viewer() {
     return (
       <div className={styles.viewerShell}>
         <h1 className={styles.srOnly}>Viewer</h1>
+
+        {/* Inline DB-load error banner (replaces alert()) */}
+        {dbError && (
+          <div className={styles.errorBannerDismissible} role="alert" data-testid="db-error-banner">
+            <span>{dbError}</span>
+            <button
+              type="button"
+              className={styles.errorDismiss}
+              aria-label="Dismiss error"
+              onClick={() => setDbError(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* M6: Restore affordance — shown when a saved config exists */}
         {savedConfigName && (
           <div className={styles.restoreBanner}>
@@ -296,7 +315,8 @@ export default function Viewer() {
       <div className={styles.viewerShell}>
         <h1 className={styles.srOnly}>Viewer</h1>
         <div className={styles.loadingOverlay}>
-          <p>Opening database…</p>
+          <span className={styles.spinner} aria-hidden="true" />
+          <p className={styles.loadingLabel}>Opening database…</p>
         </div>
       </div>
     );
@@ -366,6 +386,24 @@ export default function Viewer() {
       <div className={styles.gridPane}>
         {voidsError ? (
           <div className={styles.errorBanner}>{voidsError}</div>
+        ) : !voidsLoading && projects.length === 0 ? (
+          <div className={styles.emptyState}>
+            <span className={styles.emptyIcon} aria-hidden="true">📂</span>
+            <p className={styles.emptyTitle}>No projects found</p>
+            <p className={styles.emptyDesc}>
+              The database was opened successfully but contains no projects yet.
+            </p>
+          </div>
+        ) : !voidsLoading && voids.length === 0 ? (
+          <div className={styles.emptyState}>
+            <span className={styles.emptyIcon} aria-hidden="true">🔲</span>
+            <p className={styles.emptyTitle}>No voids in this project</p>
+            <p className={styles.emptyDesc}>
+              {selectedProject
+                ? `"${selectedProject}" has no voids matching the current filter.`
+                : 'This project has no voids yet, or all voids are closed (try enabling "Include closed voids").'}
+            </p>
+          </div>
         ) : (
           <VoidGrid
             rows={voids}

@@ -7,7 +7,7 @@ test('home renders and links to the viewer', async ({ page }) => {
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'VoidManager' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'VoidManager', exact: true })).toBeVisible();
 
   await page.getByRole('link', { name: /open the 3d viewer/i }).click();
   await expect(page).toHaveURL(/#\/viewer$/);
@@ -19,5 +19,5 @@ test('home renders and links to the viewer', async ({ page }) => {
 test('unknown route redirects home', async ({ page }) => {
   await page.goto('/#/does-not-exist');
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByRole('heading', { name: 'VoidManager' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'VoidManager', exact: true })).toBeVisible();
 });
