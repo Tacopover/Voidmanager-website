@@ -39,6 +39,18 @@ export interface WorldController {
   /** Load an IFC file from raw bytes. Returns info about the loaded model. */
   loadIfc(bytes: Uint8Array, name: string, onProgress?: (p: LoadProgress) => void): Promise<LoadedModel>;
   /**
+   * Serialize all currently-loaded fragment models to their .frag byte buffers.
+   * Used by M6 config caching to avoid re-parsing IFC on restore.
+   * Returns an empty array if no models are loaded.
+   */
+  exportLoadedModels(): Promise<{ id: string; bytes: Uint8Array }[]>;
+  /**
+   * Load a pre-converted fragments buffer directly (NO IFC re-parse).
+   * Adds the model to the scene, fits the camera, and rebuilds the IfcIndex —
+   * same post-conditions as loadIfc.
+   */
+  loadFragmentModel(id: string, bytes: Uint8Array): Promise<LoadedModel>;
+  /**
    * Set (or replace) the void meshes in the scene.
    * Clears any previously built group, builds new meshes, and adds them.
    * If an IFC model is loaded, also refreshes the IfcIndex and precomputes
@@ -55,6 +67,8 @@ export interface WorldController {
   setSelectedVoids(voidIds: number[]): Promise<void>;
   /** Number of void meshes currently in the scene (0 until setVoids is called). */
   getVoidMeshCount(): number;
+  /** Returns true if at least one fragment model is currently loaded. */
+  hasModels(): boolean;
   /** Dispose all GPU/WebGL resources and OBC components. */
   dispose(): void;
 }
@@ -428,8 +442,76 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     }
   }
 
+  async function exportLoadedModels(): Promise<{ id: string; bytes: Uint8Array }[]> {
+    const result: { id: string; bytes: Uint8Array }[] = [];
+    if (!loadedModelId) return result;
+    try {
+      const model = fragments.list.get(loadedModelId);
+      if (!model) return result;
+      // API confirmed via Context7: model.getBuffer(false) → ArrayBuffer (compressed)
+      const buffer = await model.getBuffer(false);
+      result.push({ id: loadedModelId, bytes: new Uint8Array(buffer) });
+    } catch (e) {
+      console.warn('[world] exportLoadedModels failed:', e);
+    }
+    return result;
+  }
+
+  async function loadFragmentModel(id: string, bytes: Uint8Array): Promise<LoadedModel> {
+    // API confirmed via Context7: fragments.core.load(ArrayBuffer, { modelId })
+    // The fragments.list.onItemSet handler wires scene attachment + camera.
+    const model = await fragments.core.load(bytes.buffer as ArrayBuffer, { modelId: id });
+
+    loadedModelId = model.modelId ?? id;
+
+    let elementCount = 0;
+    try {
+      const localIds = await model.getLocalIds();
+      elementCount = localIds.length;
+    } catch {
+      elementCount = model.object.children.length;
+    }
+
+    // Rebuild IfcIndex for void→element resolution
+    try {
+      ifcIndex = await buildIfcIndex(model);
+      console.debug('[world] IfcIndex rebuilt from frag:', ifcIndex.byGlobalId.size, 'globalIds');
+    } catch (e) {
+      console.warn('[world] buildIfcIndex (frag) failed:', e);
+      ifcIndex = null;
+    }
+
+    // Refresh void→element matches if voids already loaded
+    if (voidMeshMap.size > 0 && ifcIndex) {
+      _refreshVoidElementMatches();
+    }
+
+    // Fit camera to the loaded model
+    try {
+      boxer.list.clear();
+      boxer.addFromModels();
+      const box = boxer.get();
+      boxer.list.clear();
+      if (!box.isEmpty()) {
+        const sphere = new THREE.Sphere();
+        box.getBoundingSphere(sphere);
+        if (sphere.radius > 0) {
+          await world.camera.controls.fitToSphere(sphere, true);
+        }
+      }
+    } catch (e) {
+      console.warn('[world] camera fit (frag) failed:', e);
+    }
+
+    return { id, elementCount };
+  }
+
   function getVoidMeshCount(): number {
     return voidMeshMap.size;
+  }
+
+  function hasModels(): boolean {
+    return loadedModelId !== null && fragments.list.get(loadedModelId) !== undefined;
   }
 
   function dispose(): void {
@@ -440,5 +522,5 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     }
   }
 
-  return { loadIfc, setVoids, setSelectedVoids, getVoidMeshCount, dispose };
+  return { loadIfc, exportLoadedModels, loadFragmentModel, setVoids, setSelectedVoids, getVoidMeshCount, hasModels, dispose };
 }
