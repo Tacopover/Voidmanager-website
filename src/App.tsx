@@ -1,6 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, NavLink, useMatch } from 'react-router-dom';
 import Home from './pages/Home';
-import Viewer from './pages/Viewer';
+
+// Code-split: the viewer pulls in the heavy 3D/IFC/grid/sql.js libs (~1.4 MB).
+// Lazy-load it so the Home route stays light and loads fast.
+const Viewer = lazy(() => import('./pages/Viewer'));
 
 function NavBar() {
   return (
@@ -21,11 +25,13 @@ function AppMain() {
   const isViewer = !!useMatch('/viewer');
   return (
     <main className={isViewer ? 'app-main--viewer' : 'app-main'}>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/viewer" element={<Viewer />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense fallback={<div className="route-loading">Loading viewer…</div>}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/viewer" element={<Viewer />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </main>
   );
 }

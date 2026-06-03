@@ -173,6 +173,12 @@ export function buildVoidMeshes(
   const group = new THREE.Group();
   group.name = 'void-meshes';
 
+  // Revit internal coordinates are Z-up; the three.js scene is Y-up. Rotate the
+  // whole group -90° about X so voids stand upright (Revit Z → scene Y). This
+  // transforms positions AND per-mesh orientations together. (Position alignment
+  // with a loaded IFC is a separate calibration concern — see header note.)
+  group.rotation.x = -Math.PI / 2;
+
   const byVoidId = new Map<number, THREE.Mesh>();
   let skippedCount = 0;
 

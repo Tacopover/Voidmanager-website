@@ -79,6 +79,11 @@ body {
   overflow: hidden;
 }
 
+.route-loading {
+  padding: 2rem 1.5rem;
+  color: var(--text-dim);
+}
+
 .home__lead {
   font-size: 1.15rem;
   color: var(--text-dim);
