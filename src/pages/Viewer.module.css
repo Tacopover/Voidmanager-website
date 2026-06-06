@@ -1,0 +1,341 @@
+/* Viewer page layout */
+
+/* Screen-reader-only heading — keeps h1 for a11y + test selectors without visual noise */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The viewer page needs full-height layout. We override .app-main's default
+ * padding + max-width so the viewer can fill the viewport.
+ */
+
+.viewerShell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+/* Slim merged bar: brand + nav + project selector + controls */
+.topBar {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.2rem 0.6rem;
+  min-height: 34px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  flex-shrink: 0;
+}
+
+/* Brand + nav merged into the slim bar (global nav is hidden on /viewer) */
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+}
+
+.nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.navLink,
+.navLinkActive {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding-bottom: 1px;
+}
+
+.navLinkActive {
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* Pushes everything after it to the right side of the bar */
+.barSpacer {
+  flex: 1;
+}
+
+/* Draggable divider between the 3D pane and the grid */
+.divider {
+  height: 6px;
+  flex: 0 0 auto;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  cursor: row-resize;
+  position: relative;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.divider:hover::after {
+  background: var(--accent);
+}
+
+.projectLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.projectSelect {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.2rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.projectSelect:focus {
+  outline: 1px solid var(--accent);
+}
+
+/* Write-back badge */
+.badgeWritable,
+.badgeReadonly {
+  font-size: 0.72rem;
+  padding: 0.15em 0.55em;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.badgeWritable {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.badgeReadonly {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+/* 3D viewer pane — dominant; grows to fill the space above the grid */
+.threeDPane {
+  flex: 1 1 0;
+  min-height: 120px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-top: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Grid pane — fixed (resizable) height set inline via the split divider */
+.gridPane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-top: none;
+}
+
+.loadingOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.loadingLabel {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* CSS spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: block;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.errorBanner {
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+
+/* Dismissible variant — shown at the top of the needsDb screen */
+.errorBannerDismissible {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  color: #f87171;
+  font-size: 0.85rem;
+  margin: 0.5rem 0.75rem 0;
+  flex-shrink: 0;
+}
+
+.errorBannerDismissible span {
+  flex: 1;
+  line-height: 1.5;
+}
+
+.errorDismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0 0.1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.errorDismiss:hover {
+  opacity: 1;
+}
+
+/* Empty state — shown in the grid pane when there are no voids */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex: 1;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.emptyDesc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+/* M6: Config save/restore controls */
+.configBtn {
+  background: rgba(30, 41, 59, 0.85);
+  color: var(--text, #f1f5f9);
+  border: 1px solid var(--border, #334155);
+  border-radius: var(--radius, 6px);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.configBtn:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.9);
+}
+
+.configBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.configStatus {
+  font-size: 0.75rem;
+  color: var(--text-dim, #94a3b8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+/* Restore banner shown on the needsDb screen when a saved config exists */
+.restoreBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: var(--radius, 6px);
+  margin: 0.5rem 0.75rem 0;
+  flex-shrink: 0;
+}
+
+.restoreBanner span {
+  font-size: 0.82rem;
+  color: var(--text-dim, #94a3b8);
+}
+
+.restoreBtn {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  border-radius: var(--radius, 6px);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.restoreBtn:hover:not(:disabled) {
+  background: rgba(96, 165, 250, 0.25);
+}
+
+.restoreBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

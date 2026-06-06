@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# vite
+.vite/
+
+# test artifacts
+playwright-report/
+test-results/
+coverage/
+
+# logs
+*.log
+npm-debug.log*
+
+# editor / os
+.DS_Store
+*.local
+.vscode/*
+!.vscode/extensions.json
+
+# claude code — keep shared settings, ignore machine-local
+.claude/settings.local.json
+
+# local claude superpowers tooling
+.superpowers/
+docs/superpowers/
+
+# local test fixtures (real user .db / .ifc — never commit)
+fixtures/

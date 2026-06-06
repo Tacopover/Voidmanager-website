@@ -1,0 +1,483 @@
+/**
+ * Viewer page — /viewer route.
+ *
+ * Layout: 3D view placeholder on top, void datagrid below (stacked).
+ * Read-only v1: DB loading, project selector, read-only void grid.
+ * Write-back (status editing, close/reopen) deferred to M2+.
+ *
+ * M6: IndexedDB config caching — save/restore session without re-picking files.
+ */
+
+import { useCallback, useState, useRef, useEffect, type ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
+import DbLoader from '../features/viewer/DbLoader';
+import ThreeDViewer, { type ThreeDViewerHandle } from '../features/viewer/ThreeDViewer';
+import VoidGrid from '../features/voids/VoidGrid';
+import { createLocalRepository } from '../data/sqlEngine';
+import type { VoidRepository, VoidRow, ProjectSummary } from '../data/VoidRepository';
+import { saveConfig, getMostRecent } from '../features/config/configStore';
+import { clear as clearSelection } from '../store/selectionStore';
+import styles from './Viewer.module.css';
+
+// ---------------------------------------------------------------------------
+// Viewer state machine
+// ---------------------------------------------------------------------------
+
+type ViewerPhase =
+  | { tag: 'needsDb' }
+  | { tag: 'loading' }
+  | { tag: 'ready'; repo: VoidRepository; canWriteBack: boolean };
+
+// ---------------------------------------------------------------------------
+// Slim merged bar — brand + nav (always present on /viewer) + right-side controls.
+// The global nav is hidden on /viewer (App.tsx), so this carries Home/Viewer.
+// ---------------------------------------------------------------------------
+
+function ViewerBar({ children }: { children?: ReactNode }) {
+  return (
+    <div className={styles.topBar}>
+      <span className={styles.brand}>VoidManager</span>
+      <nav className={styles.nav}>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => (isActive ? styles.navLinkActive : styles.navLink)}
+        >
+          Home
+        </NavLink>
+        <NavLink
+          to="/viewer"
+          className={({ isActive }) => (isActive ? styles.navLinkActive : styles.navLink)}
+        >
+          Viewer
+        </NavLink>
+      </nav>
+      <span className={styles.barSpacer} />
+      {children}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Viewer component
+// ---------------------------------------------------------------------------
+
+export default function Viewer() {
+  const [phase, setPhase] = useState<ViewerPhase>({ tag: 'needsDb' });
+
+  // Projects + selected project
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+
+  // Voids for the selected project
+  const [voids, setVoids] = useState<VoidRow[]>([]);
+  const [voidsLoading, setVoidsLoading] = useState(false);
+  const [voidsError, setVoidsError] = useState<string | null>(null);
+
+  // Inline error banner for DB-load failures (replaces alert())
+  const [dbError, setDbError] = useState<string | null>(null);
+
+  // Include-closed toggle (lifted here so it can trigger a reload)
+  const [includeClosed, setIncludeClosed] = useState(false);
+
+  // Badge: FS Access vs fallback
+  const [canWriteBack, setCanWriteBack] = useState(false);
+
+  // M6: retain dbBytes so we can bundle them into a saved config
+  const dbBytesRef = useRef<Uint8Array | null>(null);
+  const dbNameRef = useRef<string>('session');
+
+  // M6: ref to the ThreeDViewer imperative handle
+  const viewerRef = useRef<ThreeDViewerHandle>(null);
+
+  // M6: config operation status
+  const [configStatus, setConfigStatus] = useState<string>('');
+
+  // M6: whether a saved config was found on mount (drives restore affordance)
+  const [savedConfigName, setSavedConfigName] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+
+  // M6: fragment models awaiting restore once the 3D viewer is mounted + ready.
+  const [pendingModels, setPendingModels] = useState<{ id: string; bytes: Uint8Array }[]>([]);
+
+  // M8: resizable 3D/grid split — grid pane height in px (3D pane takes the rest).
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [gridHeight, setGridHeight] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('vm.gridHeight'));
+    return Number.isFinite(saved) && saved > 80 ? saved : 280;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vm.gridHeight', String(Math.round(gridHeight)));
+  }, [gridHeight]);
+
+  // Drag the divider: grid height = distance from pointer to the shell's bottom,
+  // clamped so neither pane collapses.
+  const startSplitDrag = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const shell = shellRef.current;
+    if (!shell) return;
+    const onMove = (ev: PointerEvent) => {
+      const rect = shell.getBoundingClientRect();
+      const fromBottom = rect.bottom - ev.clientY;
+      setGridHeight(Math.max(120, Math.min(rect.height - 160, fromBottom)));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // M6: Check for a saved config on mount
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await getMostRecent();
+        if (cfg) {
+          setSavedConfigName(cfg.name);
+        }
+      } catch (e) {
+        console.warn('[Viewer] getMostRecent failed:', e);
+      }
+    })();
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // M6: load pending fragment models once the 3D viewer is mounted (phase ready)
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (phase.tag !== 'ready' || pendingModels.length === 0) return;
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        for (const m of pendingModels) {
+          if (cancelled) return;
+          await viewer.loadFragments(m.id, m.bytes);
+        }
+        if (!cancelled) setConfigStatus(`Restored ${pendingModels.length} model(s)`);
+      } catch (e) {
+        if (!cancelled) {
+          setConfigStatus(`Model restore failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      } finally {
+        if (!cancelled) setPendingModels([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase.tag, pendingModels]);
+
+  // -------------------------------------------------------------------------
+  // Load voids for a project
+  // -------------------------------------------------------------------------
+  async function loadVoids(repo: VoidRepository, projectName: string | null, closed: boolean) {
+    setVoidsLoading(true);
+    setVoidsError(null);
+    try {
+      const rows = await repo.listVoids({
+        projectName: projectName ?? undefined,
+        includeClosed: closed,
+      });
+      setVoids(rows);
+    } catch (e) {
+      setVoidsError(e instanceof Error ? e.message : String(e));
+      setVoids([]);
+    } finally {
+      setVoidsLoading(false);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // DB loaded callback (from DbLoader)
+  // -------------------------------------------------------------------------
+  const handleDbLoaded = useCallback(async (bytes: Uint8Array, wb: boolean, name?: string) => {
+    setPhase({ tag: 'loading' });
+    setCanWriteBack(wb);
+    // M6: retain bytes + name for config save
+    dbBytesRef.current = bytes;
+    dbNameRef.current = name ?? 'session';
+    try {
+      const repo = await createLocalRepository(bytes);
+      const projs = await repo.listProjects();
+      setProjects(projs);
+      // Default to "all projects" (null) so the grid is never empty on first load.
+      setSelectedProject(null);
+      setPhase({ tag: 'ready', repo, canWriteBack: wb });
+      await loadVoids(repo, null, false);
+    } catch (e) {
+      // Fall back to needsDb with an inline error banner (no alert()).
+      console.error('[Viewer] DB load failed', e);
+      setDbError(`Failed to open database: ${e instanceof Error ? e.message : String(e)}`);
+      setPhase({ tag: 'needsDb' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // -------------------------------------------------------------------------
+  // M6: Restore session from saved config
+  // -------------------------------------------------------------------------
+  async function handleRestoreConfig() {
+    if (!savedConfigName) return;
+    setRestoring(true);
+    setConfigStatus('Restoring…');
+    try {
+      const cfg = await getMostRecent();
+      if (!cfg) {
+        setConfigStatus('No saved session found.');
+        setRestoring(false);
+        return;
+      }
+
+      // Restore DB
+      setPhase({ tag: 'loading' });
+      dbBytesRef.current = cfg.dbBytes;
+      dbNameRef.current = cfg.name;
+      const repo = await createLocalRepository(cfg.dbBytes);
+      const projs = await repo.listProjects();
+      setProjects(projs);
+      setSelectedProject(null);
+      setPhase({ tag: 'ready', repo, canWriteBack: false });
+      await loadVoids(repo, null, false);
+
+      // Restore 3D models: hand them to the effect below, which fires once the
+      // 'ready' phase has rendered the 3D pane and attached the viewer ref.
+      // loadFragments() itself awaits world init, so there is no timing race.
+      if (cfg.models.length > 0) {
+        setConfigStatus(`Restoring ${cfg.models.length} model(s) from "${cfg.name}"…`);
+        setPendingModels(cfg.models);
+      } else {
+        setConfigStatus(`Restored DB from "${cfg.name}" (no models saved)`);
+      }
+    } catch (e) {
+      console.error('[Viewer] restore failed', e);
+      setConfigStatus(`Restore failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setRestoring(false);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // M6: Save current session configuration
+  // -------------------------------------------------------------------------
+  async function handleSaveConfig() {
+    const dbBytes = dbBytesRef.current;
+    if (!dbBytes) return;
+
+    // Prompt user for a config name (v1: simple prompt)
+    const defaultName = dbNameRef.current || 'session';
+    const name = window.prompt('Save configuration as:', defaultName);
+    if (!name) return; // user cancelled
+
+    setConfigStatus('Saving…');
+    try {
+      const viewer = viewerRef.current;
+      const models = viewer ? await viewer.exportModels() : [];
+      await saveConfig({ name, dbBytes, models, lastOpened: Date.now() });
+      setSavedConfigName(name);
+      setConfigStatus(`Saved "${name}" (${models.length} model(s))`);
+    } catch (e) {
+      console.error('[Viewer] save config failed', e);
+      setConfigStatus(`Save failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Project selector change
+  // -------------------------------------------------------------------------
+  async function handleProjectChange(name: string) {
+    // Empty string means "All projects" (no filter).
+    const project = name === '' ? null : name;
+    setSelectedProject(project);
+    // Stale selection from the previous project's voids must not linger.
+    clearSelection('api');
+    if (phase.tag === 'ready') {
+      await loadVoids(phase.repo, project, includeClosed);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Include-closed toggle
+  // -------------------------------------------------------------------------
+  async function handleIncludeClosedChange(v: boolean) {
+    setIncludeClosed(v);
+    if (phase.tag === 'ready') {
+      await loadVoids(phase.repo, selectedProject, v);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Render helpers
+  // -------------------------------------------------------------------------
+
+  if (phase.tag === 'needsDb') {
+    return (
+      <div className={styles.viewerShell}>
+        <h1 className={styles.srOnly}>Viewer</h1>
+        <ViewerBar />
+
+        {/* Inline DB-load error banner (replaces alert()) */}
+        {dbError && (
+          <div className={styles.errorBannerDismissible} role="alert" data-testid="db-error-banner">
+            <span>{dbError}</span>
+            <button
+              type="button"
+              className={styles.errorDismiss}
+              aria-label="Dismiss error"
+              onClick={() => setDbError(null)}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* M6: Restore affordance — shown when a saved config exists */}
+        {savedConfigName && (
+          <div className={styles.restoreBanner}>
+            <span>Session &ldquo;{savedConfigName}&rdquo; was saved.</span>
+            <button
+              type="button"
+              className={styles.restoreBtn}
+              data-testid="restore-config-btn"
+              disabled={restoring}
+              onClick={() => void handleRestoreConfig()}
+            >
+              {restoring ? 'Restoring…' : 'Restore last session'}
+            </button>
+            {configStatus && (
+              <span className={styles.configStatus} data-testid="config-status">
+                {configStatus}
+              </span>
+            )}
+          </div>
+        )}
+        <DbLoader onLoaded={(bytes, wb) => void handleDbLoaded(bytes, wb)} />
+      </div>
+    );
+  }
+
+  if (phase.tag === 'loading') {
+    return (
+      <div className={styles.viewerShell}>
+        <h1 className={styles.srOnly}>Viewer</h1>
+        <ViewerBar />
+        <div className={styles.loadingOverlay}>
+          <span className={styles.spinner} aria-hidden="true" />
+          <p className={styles.loadingLabel}>Opening database…</p>
+        </div>
+      </div>
+    );
+  }
+
+  // phase.tag === 'ready'
+  return (
+    <div className={styles.viewerShell} ref={shellRef}>
+      {/* Visually-hidden page heading for accessibility and test selectors */}
+      <h1 className={styles.srOnly}>Viewer</h1>
+
+      {/* Slim merged bar: brand + nav (left) · project + controls (right) */}
+      <ViewerBar>
+        {projects.length > 0 && (
+          <label className={styles.projectLabel}>
+            <span>Project</span>
+            <select
+              className={styles.projectSelect}
+              data-testid="project-select"
+              value={selectedProject ?? ''}
+              onChange={(e) => void handleProjectChange(e.target.value)}
+            >
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <span
+          className={canWriteBack ? styles.badgeWritable : styles.badgeReadonly}
+          title={
+            canWriteBack
+              ? 'Connected via File System Access API — write-back will be available'
+              : 'Read-only mode — write-back requires Chromium browser with folder access'
+          }
+        >
+          {canWriteBack ? 'Writable' : 'Read-only'}
+        </span>
+
+        {/* M6: Save configuration button */}
+        <button
+          type="button"
+          className={styles.configBtn}
+          data-testid="save-config-btn"
+          onClick={() => void handleSaveConfig()}
+          title="Save current DB + 3D models to IndexedDB for quick restore"
+        >
+          Save session
+        </button>
+
+        {/* M6: Config status message */}
+        {configStatus && (
+          <span className={styles.configStatus} data-testid="config-status">
+            {configStatus}
+          </span>
+        )}
+      </ViewerBar>
+
+      {/* 3D viewer — M2 Stage B2 (dominant pane, takes remaining height) */}
+      <div className={styles.threeDPane}>
+        <ThreeDViewer ref={viewerRef} voids={voids} />
+      </div>
+
+      {/* Draggable divider — resize the 3D/grid split */}
+      <div
+        className={styles.divider}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize 3D view and grid"
+        data-testid="split-divider"
+        onPointerDown={startSplitDrag}
+      />
+
+      {/* Void grid (resizable height) */}
+      <div className={styles.gridPane} style={{ height: gridHeight, flex: '0 0 auto' }}>
+        {voidsError ? (
+          <div className={styles.errorBanner}>{voidsError}</div>
+        ) : !voidsLoading && projects.length === 0 ? (
+          <div className={styles.emptyState}>
+            <span className={styles.emptyIcon} aria-hidden="true">📂</span>
+            <p className={styles.emptyTitle}>No projects found</p>
+            <p className={styles.emptyDesc}>
+              The database was opened successfully but contains no projects yet.
+            </p>
+          </div>
+        ) : !voidsLoading && voids.length === 0 ? (
+          <div className={styles.emptyState}>
+            <span className={styles.emptyIcon} aria-hidden="true">🔲</span>
+            <p className={styles.emptyTitle}>No voids in this project</p>
+            <p className={styles.emptyDesc}>
+              {selectedProject
+                ? `"${selectedProject}" has no voids matching the current filter.`
+                : 'This project has no voids yet, or all voids are closed (try enabling "Include closed voids").'}
+            </p>
+          </div>
+        ) : (
+          <VoidGrid
+            rows={voids}
+            loading={voidsLoading}
+            includeClosed={includeClosed}
+            onIncludeClosedChange={(v) => void handleIncludeClosedChange(v)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoidManager Web Viewer — Layout Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --accent-h: 200;
+    --accent: hsl(var(--accent-h), 80%, 55%);
+    --accent-dim: hsl(var(--accent-h), 60%, 35%);
+    --accent-glow: hsl(var(--accent-h), 90%, 65%);
+    --bg: #0f1117;
+    --bg2: #161b22;
+    --bg3: #1e2530;
+    --bg4: #252d3a;
+    --border: #2d3748;
+    --text: #e2e8f0;
+    --text-dim: #718096;
+    --text-muted: #4a5568;
+    --radius: 8px;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --font-mono: "Cascadia Code", "Fira Code", "Consolas", "Courier New", monospace;
+  }
+
+  body.light-theme {
+    --bg: #f0f4f8;
+    --bg2: #ffffff;
+    --bg3: #e8edf2;
+    --bg4: #dde3ea;
+    --border: #c8d0da;
+    --text: #1a202c;
+    --text-dim: #4a5568;
+    --text-muted: #718096;
+  }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 1fr;
+    overflow: hidden;
+    font-size: 13px;
+  }
+
+  /* ─── LEFT PANEL ─── */
+  #controls-panel {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .panel-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .panel-header span { font-size: 14px; }
+
+  .control-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 2px;
+  }
+
+  .control-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .control-row label {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .control-row label .val {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--bg3);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  input[type=range] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--bg4);
+    border-radius: 2px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg2);
+    cursor: pointer;
+  }
+
+  /* Layout cards */
+  .layout-cards {
+    display: flex;
+    gap: 6px;
+  }
+
+  .layout-card {
+    flex: 1;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 4px 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg3);
+    transition: border-color .15s, background .15s;
+    font-size: 10px;
+    color: var(--text-dim);
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .layout-card:hover { border-color: var(--accent-dim); }
+  .layout-card.active { border-color: var(--accent); background: var(--bg4); color: var(--accent); }
+
+  .layout-icon {
+    width: 40px; height: 26px;
+    display: flex;
+    gap: 2px;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .layout-icon .half { flex: 1; border-radius: 2px; }
+  .layout-icon .half.viewer-block { background: hsl(var(--accent-h), 40%, 25%); }
+  .layout-icon .half.grid-block { background: var(--bg4); }
+  .layout-icon.top-bottom { flex-direction: column; }
+
+  /* Segmented / toggle */
+  .seg-ctrl {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .seg-ctrl button {
+    flex: 1;
+    padding: 5px 4px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    transition: background .1s, color .1s;
+  }
+
+  .seg-ctrl button + button { border-left: 1px solid var(--border); }
+  .seg-ctrl button:hover { background: var(--bg3); }
+  .seg-ctrl button.active { background: var(--accent-dim); color: var(--text); }
+
+  /* Checkboxes */
+  .checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .checkbox-group label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .checkbox-group input[type=checkbox] {
+    width: 13px; height: 13px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Color swatch preview */
+  .hue-preview {
+    width: 100%;
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right,
+      hsl(0,80%,55%), hsl(30,80%,55%), hsl(60,80%,55%), hsl(90,80%,55%),
+      hsl(120,80%,55%), hsl(150,80%,55%), hsl(180,80%,55%), hsl(210,80%,55%),
+      hsl(240,80%,55%), hsl(270,80%,55%), hsl(300,80%,55%), hsl(330,80%,55%), hsl(360,80%,55%)
+    );
+    margin-bottom: 4px;
+    position: relative;
+  }
+
+  .hue-cursor {
+    position: absolute;
+    top: -2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+    transform: translateX(-50%);
+    pointer-events: none;
+    transition: left .05s;
+  }
+
+  /* Presets */
+  .presets-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .preset-btn {
+    padding: 4px 9px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg3);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    transition: all .1s;
+  }
+
+  .preset-btn:hover { border-color: var(--accent-dim); color: var(--text); }
+  .preset-btn.active { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+  .preset-btn .default-tag { font-size: 9px; color: var(--accent); margin-left: 3px; }
+
+  /* ─── RIGHT MAIN ─── */
+  #main-area {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  #preview-area {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    min-height: 0;
+  }
+
+  /* ─── PREVIEW SHELL ─── */
+  #preview-shell {
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 12px;
+  }
+
+  /* Toolbar variants */
+  #preview-shell.toolbar-top { flex-direction: column; }
+  #preview-shell.toolbar-rail { flex-direction: row; }
+
+  /* TOP TOOLBAR */
+  #mock-toolbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    height: 40px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  #mock-toolbar.rail-mode {
+    flex-direction: column;
+    height: 100%;
+    width: 48px;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+    padding: 8px 0;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+
+  .toolbar-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-right: 8px;
+    white-space: nowrap;
+  }
+
+  .rail-mode .toolbar-title { display: none; }
+
+  .mock-btn {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg3);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    white-space: nowrap;
+    transition: all .12s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mock-btn:hover { border-color: var(--accent-dim); color: var(--text); background: var(--bg4); }
+  .mock-btn.primary { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+  .mock-btn.primary:hover { background: var(--accent); }
+
+  .rail-mode .mock-btn {
+    width: 34px; height: 34px;
+    padding: 0;
+    justify-content: center;
+    font-size: 14px;
+    border-radius: var(--radius);
+  }
+
+  .rail-mode .mock-btn .btn-label { display: none; }
+
+  #status-bar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .rail-mode #status-bar { display: none; }
+
+  #status-text {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 10px;
+  }
+
+  #unsaved-indicator {
+    color: hsl(35, 90%, 60%);
+    font-size: 11px;
+    display: none;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* CONTENT AREA */
+  #content-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  #content-area.layout-3d-left { flex-direction: row; }
+  #content-area.layout-3d-right { flex-direction: row-reverse; }
+  #content-area.layout-3d-top { flex-direction: column; }
+
+  /* VIEWER PANE */
+  #viewer-pane {
+    background: #0a0d12;
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+    border-radius: 0;
+  }
+
+  .layout-3d-left #viewer-pane,
+  .layout-3d-right #viewer-pane { height: 100%; }
+  .layout-3d-top #viewer-pane { width: 100% !important; }
+
+  /* Faux 3D scene */
+  .scene-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 60% 40%, hsl(var(--accent-h),30%,10%) 0%, #050709 70%);
+  }
+
+  .grid-floor {
+    position: absolute;
+    bottom: 0; left: -20%; right: -20%;
+    height: 55%;
+    background-image:
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+    transform: perspective(300px) rotateX(60deg);
+    transform-origin: bottom;
+    opacity: .7;
+  }
+
+  /* Faux void boxes */
+  .faux-elements {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .faux-el {
+    position: absolute;
+    border: 1.5px solid rgba(255,255,255,.15);
+    border-radius: 2px;
+    background: rgba(255,255,255,.04);
+    transition: all .2s;
+  }
+
+  .faux-el.selected-glow {
+    border-color: var(--accent-glow) !important;
+    box-shadow: 0 0 12px 3px hsl(var(--accent-h),90%,55%,.45), inset 0 0 12px hsl(var(--accent-h),90%,55%,.1);
+    background: hsl(var(--accent-h),60%,40%,.18) !important;
+    z-index: 2;
+  }
+
+  .faux-el.selected-outline {
+    border: 2.5px solid var(--accent-glow) !important;
+    background: transparent !important;
+    z-index: 2;
+  }
+
+  .faux-el.selected-fill {
+    background: hsl(var(--accent-h),60%,50%,.30) !important;
+    border-color: hsl(var(--accent-h),60%,60%,.5) !important;
+    z-index: 2;
+  }
+
+  .viewer-label {
+    position: absolute;
+    top: 10px; left: 12px;
+    font-size: 10px;
+    color: rgba(255,255,255,.35);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    user-select: none;
+  }
+
+  .fit-camera-badge {
+    position: absolute;
+    bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,.7);
+    border: 1px solid var(--accent-dim);
+    color: var(--accent-glow);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    display: none;
+    backdrop-filter: blur(4px);
+  }
+
+  /* GRID PANE */
+  #grid-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  /* Summary bar */
+  #summary-bar {
+    padding: 5px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+  }
+
+  #summary-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  .status-pill {
+    padding: 1px 7px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  /* Grid table */
+  #grid-scroll {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+  }
+
+  #void-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  #void-grid thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg3);
+  }
+
+  #void-grid th {
+    padding: 5px 10px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+  }
+
+  #void-grid th:hover { color: var(--text-dim); }
+
+  #void-grid td {
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text);
+    white-space: nowrap;
+    transition: background .1s;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  #void-grid tr { cursor: pointer; }
+  #void-grid tbody tr:hover td { background: var(--bg3); }
+  #void-grid tbody tr.row-selected td { background: hsl(var(--accent-h),40%,15%) !important; }
+  body.light-theme #void-grid tbody tr.row-selected td { background: hsl(var(--accent-h),60%,90%) !important; }
+
+  .status-select {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg4);
+    color: var(--text);
+    font-size: 11px;
+    padding: 2px 5px;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    outline: none;
+    transition: border-color .1s;
+  }
+
+  .status-select:focus { border-color: var(--accent); }
+
+  .type-glyph {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* ─── PROMPT OUTPUT ─── */
+  #prompt-area {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    flex-shrink: 0;
+    max-height: 160px;
+  }
+
+  #prompt-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #prompt-header-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--text-muted);
+    flex: 1;
+  }
+
+  #copy-btn {
+    padding: 4px 12px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 11px;
+    font-family: var(--font-ui);
+    transition: all .12s;
+  }
+
+  #copy-btn:hover { background: var(--accent-dim); color: var(--text); }
+  #copy-btn.copied { background: hsl(140,60%,30%); border-color: hsl(140,60%,45%); color: hsl(140,60%,80%); }
+
+  #prompt-output {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--text-dim);
+    overflow-y: auto;
+    max-height: 100px;
+    user-select: text;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* Status colors */
+  .s-concept       { background: #374151; color: #9ca3af; }
+  .s-open          { background: #451a03; color: #fb923c; }
+  .s-approved      { background: #14532d; color: #4ade80; }
+  .s-rejected      { background: #450a0a; color: #f87171; }
+  .s-released      { background: #1e3a5f; color: #60a5fa; }
+  .s-executed      { background: #3b0764; color: #c084fc; }
+
+  body.light-theme .s-concept  { background: #e5e7eb; color: #4b5563; }
+  body.light-theme .s-open     { background: #fef3c7; color: #92400e; }
+  body.light-theme .s-approved { background: #dcfce7; color: #166534; }
+  body.light-theme .s-rejected { background: #fee2e2; color: #991b1b; }
+  body.light-theme .s-released { background: #dbeafe; color: #1d4ed8; }
+  body.light-theme .s-executed { background: #f3e8ff; color: #6b21a8; }
+
+  /* Rail status bar shown below rail toolbar */
+  #rail-status-bar {
+    display: none;
+    padding: 5px 10px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rail-mode-shell #rail-status-bar { display: flex; }
+
+  select, option { font-family: var(--font-ui); }
+</style>
+</head>
+<body>
+
+<!-- LEFT CONTROLS -->
+<div id="controls-panel">
+  <div class="panel-header">
+    <span>⚙</span> Design Controls
+  </div>
+
+  <!-- PRESETS -->
+  <div class="control-section">
+    <div class="section-label">Presets</div>
+    <div class="presets-row" id="presets-row"></div>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="control-section">
+    <div class="section-label">Layout Structure</div>
+    <div class="layout-cards" id="layout-cards">
+      <div class="layout-card" data-layout="3d-left">
+        <div class="layout-icon">
+          <div class="half viewer-block"></div>
+          <div class="half grid-block"></div>
+        </div>
+        3D left<br>Grid right
+      </div>
+      <div class="layout-card" data-layout="3d-right">
+        <div class="layout-icon">
+          <div class="half grid-block"></div>
+          <div class="half viewer-block"></div>
+        </div>
+        3D right<br>Grid left
+      </div>
+      <div class="layout-card" data-layout="3d-top">
+        <div class="layout-icon top-bottom">
+          <div class="half viewer-block"></div>
+          <div class="half grid-block"></div>
+        </div>
+        3D top<br>Grid bottom
+      </div>
+    </div>
+
+    <div class="control-row">
+      <label>
+        Split ratio (3D side)
+        <span class="val" id="split-val">60%</span>
+      </label>
+      <input type="range" id="split-slider" min="30" max="75" value="60" step="1">
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="control-section">
+    <div class="section-label">Toolbar Placement</div>
+    <div class="seg-ctrl" id="toolbar-seg">
+      <button data-val="top" class="active">Top bar</button>
+      <button data-val="rail">Left rail</button>
+    </div>
+  </div>
+
+  <!-- GRID -->
+  <div class="control-section">
+    <div class="section-label">Grid</div>
+    <div class="control-row">
+      <label>
+        Row height
+        <span class="val" id="rowh-val">36px</span>
+      </label>
+      <input type="range" id="rowh-slider" min="24" max="54" value="36" step="2">
+    </div>
+    <div class="control-row">
+      <label>Color-coded status pills</label>
+      <div class="seg-ctrl" id="pills-seg">
+        <button data-val="on" class="active">On</button>
+        <button data-val="off">Off</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SELECTION -->
+  <div class="control-section">
+    <div class="section-label">Selection Highlight (3D)</div>
+    <div class="control-row">
+      <label>Style</label>
+      <div class="seg-ctrl" id="highlight-seg">
+        <button data-val="glow" class="active">Glow</button>
+        <button data-val="outline">Outline</button>
+        <button data-val="fill">Fill</button>
+      </div>
+    </div>
+    <div class="control-row">
+      <label>
+        Intensity
+        <span class="val" id="intensity-val">Medium</span>
+      </label>
+      <input type="range" id="intensity-slider" min="1" max="3" value="2" step="1">
+    </div>
+  </div>
+
+  <!-- THEME + COLOR -->
+  <div class="control-section">
+    <div class="section-label">Theme &amp; Color</div>
+    <div class="seg-ctrl" id="theme-seg">
+      <button data-val="dark" class="active">Dark</button>
+      <button data-val="light">Light</button>
+    </div>
+    <div class="control-row" style="margin-top:6px">
+      <label>
+        Accent hue
+        <span class="val" id="hue-val">200°</span>
+      </label>
+      <div class="hue-preview"><div class="hue-cursor" id="hue-cursor"></div></div>
+      <input type="range" id="hue-slider" min="0" max="360" value="200" step="1">
+    </div>
+  </div>
+
+  <!-- PANEL STYLE -->
+  <div class="control-section">
+    <div class="section-label">Panel Style</div>
+    <div class="control-row">
+      <label>
+        Corner radius
+        <span class="val" id="radius-val">8px</span>
+      </label>
+      <input type="range" id="radius-slider" min="0" max="16" value="8" step="1">
+    </div>
+  </div>
+
+  <!-- COLUMNS -->
+  <div class="control-section">
+    <div class="section-label">Show / Hide Columns</div>
+    <div class="checkbox-group" id="col-toggles">
+      <label><input type="checkbox" data-col="locX" id="col-locX"> Location X</label>
+      <label><input type="checkbox" data-col="locY" id="col-locY"> Location Y</label>
+      <label><input type="checkbox" data-col="locZ" id="col-locZ"> Location Z</label>
+      <label><input type="checkbox" data-col="thickness" id="col-thickness" checked> Thickness</label>
+      <label><input type="checkbox" data-col="host" id="col-host" checked> Host</label>
+      <label><input type="checkbox" data-col="assignedTo" id="col-assignedTo" checked> Assigned To</label>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT MAIN AREA -->
+<div id="main-area">
+  <div id="preview-area">
+    <!-- PREVIEW SHELL (rebuilt by renderPreview) -->
+    <div id="preview-shell">
+
+      <!-- TOOLBAR (top mode) -->
+      <div id="mock-toolbar">
+        <span class="toolbar-title">VoidManager Viewer</span>
+        <button class="mock-btn" onclick="fakeClick(this,'model.ifc loaded')">
+          <span>📂</span><span class="btn-label">Load IFC</span>
+        </button>
+        <button class="mock-btn" onclick="fakeClick(this,'database.db loaded — 12 voids found')">
+          <span>🗄</span><span class="btn-label">Load .db</span>
+        </button>
+        <button class="mock-btn" onclick="fakeClick(this,'Configuration saved')">
+          <span>💾</span><span class="btn-label">Save config</span>
+        </button>
+        <button class="mock-btn primary" onclick="fakeWriteback()">
+          <span>✏</span><span class="btn-label">Save changes</span>
+        </button>
+        <div id="status-bar">
+          <span id="status-text">model.ifc loaded</span>
+          <span id="unsaved-indicator">● unsaved changes</span>
+        </div>
+      </div>
+
+      <!-- CONTENT AREA -->
+      <div id="content-area" class="layout-3d-left">
+
+        <!-- VIEWER PANE -->
+        <div id="viewer-pane">
+          <div class="scene-bg"></div>
+          <div class="grid-floor"></div>
+          <div class="faux-elements" id="faux-elements"></div>
+          <span class="viewer-label">3D View</span>
+          <div class="fit-camera-badge" id="fit-camera-badge">📷 fit to element</div>
+        </div>
+
+        <!-- GRID PANE -->
+        <div id="grid-pane">
+          <div id="summary-bar">
+            <span id="summary-text">12 voids</span>
+            <div id="summary-pills"></div>
+          </div>
+          <div id="grid-scroll">
+            <table id="void-grid">
+              <thead><tr id="grid-header-row"></tr></thead>
+              <tbody id="grid-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+      <!-- rail status bar (shown when toolbar=rail) -->
+      <div id="rail-status-bar">
+        <span id="rail-status-text">model.ifc loaded</span>
+        <span id="rail-unsaved" style="color:hsl(35,90%,60%);display:none">● unsaved changes</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT OUTPUT -->
+  <div id="prompt-area">
+    <div id="prompt-header">
+      <span id="prompt-header-label">📋 Generated Prompt — copy into Claude to build the real /viewer page</span>
+      <button id="copy-btn" onclick="copyPrompt()">Copy Prompt</button>
+    </div>
+    <div id="prompt-output"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DUMMY DATA (deterministic, no Math.random)
+// ═══════════════════════════════════════════════════════════
+const STATUSES = ['concept','open for review','approved','rejected','released for execution','executed'];
+
+const VOIDS = [
+  { id:1, seq:'AT-01-10', type:'Circle',    status:'concept',              assignedTo:'architect@bimgeneration.com',    level:'Level 01 (±0.000 m)',  host:'Walls',  d:150,             thickness:200, x:3210, y:-1450, z:2800 },
+  { id:2, seq:'AT-01-11', type:'Rectangle', status:'open for review',      assignedTo:'merlijn@bimgeneration.com',      level:'Level 01 (±0.000 m)',  host:'Walls',  w:300, h:200,      thickness:300, x:5100, y:-1450, z:3200 },
+  { id:3, seq:'AT-01-12', type:'Circle',    status:'approved',             assignedTo:'structural@bimgeneration.com',   level:'Level 01 (±0.000 m)',  host:'Floors', d:200,             thickness:250, x:1800, y:2300,  z:100  },
+  { id:4, seq:'AT-02-01', type:'Rectangle', status:'rejected',             assignedTo:'architect@bimgeneration.com',    level:'Level 02 (+6.000 m)',  host:'Walls',  w:450, h:300,      thickness:200, x:7650, y:-1450, z:8900 },
+  { id:5, seq:'AT-02-02', type:'Circle',    status:'released for execution',assignedTo:'merlijn@bimgeneration.com',     level:'Level 02 (+6.000 m)',  host:'Beams',  d:120,             thickness:150, x:4200, y:3100,  z:6200 },
+  { id:6, seq:'AT-02-03', type:'Circle',    status:'executed',             assignedTo:'structural@bimgeneration.com',   level:'Level 02 (+6.000 m)',  host:'Floors', d:180,             thickness:250, x:2900, y:2300,  z:6050 },
+  { id:7, seq:'AT-02-04', type:'Rectangle', status:'concept',              assignedTo:'merlijn@bimgeneration.com',      level:'Level 02 (+6.000 m)',  host:'Walls',  w:600, h:400,      thickness:300, x:9100, y:-1450, z:9200 },
+  { id:8, seq:'AT-03-01', type:'Circle',    status:'open for review',      assignedTo:'architect@bimgeneration.com',    level:'Level 03 (+9.600 m)',  host:'Walls',  d:150,             thickness:200, x:3210, y:-1450, z:14800},
+  { id:9, seq:'AT-03-02', type:'Rectangle', status:'approved',             assignedTo:'structural@bimgeneration.com',   level:'Level 03 (+9.600 m)',  host:'Floors', w:300, h:250,      thickness:200, x:5500, y:4100,  z:9550 },
+  { id:10,seq:'AT-03-03', type:'Circle',    status:'released for execution',assignedTo:'merlijn@bimgeneration.com',    level:'Level 03 (+9.600 m)',  host:'Beams',  d:100,             thickness:150, x:7100, y:3800,  z:9600 },
+  { id:11,seq:'AT-04-01', type:'Rectangle', status:'concept',              assignedTo:'architect@bimgeneration.com',    level:'Level 04 (+13.200 m)', host:'Walls',  w:500, h:350,      thickness:300, x:1600, y:-1450, z:20400},
+  { id:12,seq:'AT-04-02', type:'Circle',    status:'executed',             assignedTo:'structural@bimgeneration.com',   level:'Level 04 (+13.200 m)', host:'Floors', d:250,             thickness:300, x:4800, y:4500,  z:13150},
+];
+
+// Mutable state copy for status edits
+const voidData = VOIDS.map(v => ({...v}));
+
+// ═══════════════════════════════════════════════════════════
+// STATE + DEFAULTS
+// ═══════════════════════════════════════════════════════════
+const DEFAULTS = {
+  layout: '3d-left',
+  split: 60,
+  toolbar: 'top',
+  rowHeight: 36,
+  pills: 'on',
+  highlightStyle: 'glow',
+  intensity: 2,
+  theme: 'dark',
+  hue: 200,
+  radius: 8,
+  cols: { locX:false, locY:false, locZ:false, thickness:true, host:true, assignedTo:true },
+};
+
+const state = JSON.parse(JSON.stringify(DEFAULTS));
+state.cols = JSON.parse(JSON.stringify(DEFAULTS.cols));
+
+const selectedRows = new Set();
+
+// ═══════════════════════════════════════════════════════════
+// PRESETS
+// ═══════════════════════════════════════════════════════════
+const PRESETS = [
+  {
+    name: 'Revit-like', isDefault: true,
+    s: { layout:'3d-left', split:60, toolbar:'top', rowHeight:36, pills:'on',
+         highlightStyle:'glow', intensity:2, theme:'dark', hue:200, radius:8,
+         cols:{locX:false,locY:false,locZ:false,thickness:true,host:true,assignedTo:true} }
+  },
+  {
+    name: 'Spacious',
+    s: { layout:'3d-left', split:68, toolbar:'top', rowHeight:48, pills:'on',
+         highlightStyle:'glow', intensity:2, theme:'dark', hue:180, radius:12,
+         cols:{locX:false,locY:false,locZ:false,thickness:true,host:true,assignedTo:true} }
+  },
+  {
+    name: 'Compact',
+    s: { layout:'3d-left', split:55, toolbar:'top', rowHeight:26, pills:'on',
+         highlightStyle:'outline', intensity:2, theme:'dark', hue:200, radius:4,
+         cols:{locX:true,locY:true,locZ:true,thickness:true,host:true,assignedTo:true} }
+  },
+  {
+    name: 'Light mode',
+    s: { layout:'3d-left', split:60, toolbar:'top', rowHeight:36, pills:'on',
+         highlightStyle:'glow', intensity:2, theme:'light', hue:220, radius:8,
+         cols:{locX:false,locY:false,locZ:false,thickness:true,host:true,assignedTo:true} }
+  },
+  {
+    name: 'Grid-focused',
+    s: { layout:'3d-top', split:38, toolbar:'rail', rowHeight:30, pills:'on',
+         highlightStyle:'fill', intensity:3, theme:'dark', hue:260, radius:6,
+         cols:{locX:false,locY:false,locZ:false,thickness:true,host:true,assignedTo:false} }
+  },
+];
+
+// ═══════════════════════════════════════════════════════════
+// APPLY STATE → CSS VARIABLES + DOM
+// ═══════════════════════════════════════════════════════════
+function applyStateToDOM() {
+  // Accent hue
+  document.documentElement.style.setProperty('--accent-h', state.hue);
+  // Radius
+  document.documentElement.style.setProperty('--radius', state.radius + 'px');
+  // Theme
+  document.body.classList.toggle('light-theme', state.theme === 'light');
+
+  // Layout
+  const contentArea = document.getElementById('content-area');
+  contentArea.className = 'layout-' + state.layout;
+
+  // Split
+  const viewerPane = document.getElementById('viewer-pane');
+  if (state.layout === '3d-top') {
+    viewerPane.style.width = '';
+    viewerPane.style.height = state.split + '%';
+  } else {
+    viewerPane.style.height = '';
+    viewerPane.style.width = state.split + '%';
+  }
+
+  // Toolbar
+  const toolbar = document.getElementById('mock-toolbar');
+  const shell = document.getElementById('preview-shell');
+  const railBar = document.getElementById('rail-status-bar');
+
+  if (state.toolbar === 'rail') {
+    toolbar.classList.add('rail-mode');
+    shell.classList.add('rail-mode-shell');
+    railBar.style.display = 'flex';
+  } else {
+    toolbar.classList.remove('rail-mode');
+    shell.classList.remove('rail-mode-shell');
+    railBar.style.display = '';
+  }
+
+  // Row heights
+  const style = document.getElementById('dynamic-style') || (() => {
+    const s = document.createElement('style');
+    s.id = 'dynamic-style';
+    document.head.appendChild(s);
+    return s;
+  })();
+  style.textContent = `#void-grid td { height: ${state.rowHeight}px; } #void-grid .status-select { height: ${Math.max(18, state.rowHeight - 10)}px; }`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS META
+// ═══════════════════════════════════════════════════════════
+const STATUS_META = {
+  'concept':               { cls: 's-concept',  label: 'Concept' },
+  'open for review':       { cls: 's-open',     label: 'Open for review' },
+  'approved':              { cls: 's-approved', label: 'Approved' },
+  'rejected':              { cls: 's-rejected', label: 'Rejected' },
+  'released for execution':{ cls: 's-released', label: 'Released' },
+  'executed':              { cls: 's-executed', label: 'Executed' },
+};
+
+function statusBadge(status) {
+  const m = STATUS_META[status] || { cls: '', label: status };
+  return `<span class="status-pill ${m.cls}">${m.label}</span>`;
+}
+
+function statusText(status) {
+  return `<span style="font-family:var(--font-ui);font-size:11px;color:var(--text-dim)">${STATUS_META[status]?.label || status}</span>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// GRID RENDER
+// ═══════════════════════════════════════════════════════════
+const COL_DEFS = [
+  { id:'seq',         label:'Seq',         always:true },
+  { id:'type',        label:'Type',        always:true },
+  { id:'status',      label:'Status',      always:true },
+  { id:'assignedTo',  label:'Assigned To', always:false, key:'assignedTo' },
+  { id:'level',       label:'Level',       always:true },
+  { id:'host',        label:'Host',        always:false, key:'host' },
+  { id:'size',        label:'Size',        always:true },
+  { id:'thickness',   label:'Thickness',   always:false, key:'thickness' },
+  { id:'locX',        label:'Loc X (mm)',  always:false, key:'locX' },
+  { id:'locY',        label:'Loc Y (mm)',  always:false, key:'locY' },
+  { id:'locZ',        label:'Loc Z (mm)',  always:false, key:'locZ' },
+];
+
+function visibleCols() {
+  return COL_DEFS.filter(c => c.always || state.cols[c.id]);
+}
+
+function renderGrid() {
+  const cols = visibleCols();
+  const headerRow = document.getElementById('grid-header-row');
+  headerRow.innerHTML = cols.map(c => `<th>${c.label}</th>`).join('');
+
+  const tbody = document.getElementById('grid-body');
+  tbody.innerHTML = '';
+
+  voidData.forEach(v => {
+    const tr = document.createElement('tr');
+    if (selectedRows.has(v.id)) tr.classList.add('row-selected');
+    tr.dataset.id = v.id;
+
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      switch(c.id) {
+        case 'seq':
+          td.textContent = v.seq;
+          break;
+        case 'type':
+          td.innerHTML = v.type === 'Circle'
+            ? '<span class="type-glyph" title="Circle">○</span>'
+            : '<span class="type-glyph" title="Rectangle">▭</span>';
+          break;
+        case 'status':
+          const sel = document.createElement('select');
+          sel.className = 'status-select';
+          STATUSES.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s;
+            opt.textContent = s;
+            if (s === v.status) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          if (state.pills === 'on') {
+            // Wrap in a div showing the pill + the select
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'display:flex;align-items:center;gap:6px;';
+            const pill = document.createElement('span');
+            const m = STATUS_META[v.status] || {};
+            pill.className = 'status-pill ' + (m.cls || '');
+            pill.textContent = m.label || v.status;
+            pill.id = 'pill-' + v.id;
+            wrap.appendChild(pill);
+            wrap.appendChild(sel);
+            td.appendChild(wrap);
+          } else {
+            td.appendChild(sel);
+          }
+          sel.addEventListener('change', (e) => {
+            e.stopPropagation();
+            v.status = e.target.value;
+            // Update pill if visible
+            const pill = document.getElementById('pill-' + v.id);
+            if (pill) {
+              const m = STATUS_META[v.status] || {};
+              pill.className = 'status-pill ' + (m.cls || '');
+              pill.textContent = m.label || v.status;
+            }
+            showUnsaved();
+            updateSummary();
+          });
+          break;
+        case 'assignedTo':
+          td.textContent = v.assignedTo;
+          td.style.color = 'var(--text-dim)';
+          break;
+        case 'level':
+          td.textContent = v.level;
+          td.style.color = 'var(--text-dim)';
+          break;
+        case 'host':
+          td.textContent = v.host;
+          break;
+        case 'size':
+          td.textContent = v.type === 'Circle'
+            ? `Ø ${v.d} mm`
+            : `${v.w} × ${v.h} mm`;
+          break;
+        case 'thickness':
+          td.textContent = v.thickness + ' mm';
+          break;
+        case 'locX':
+          td.textContent = v.x;
+          break;
+        case 'locY':
+          td.textContent = v.y;
+          break;
+        case 'locZ':
+          td.textContent = v.z;
+          break;
+      }
+      tr.appendChild(td);
+    });
+
+    // Row selection
+    tr.addEventListener('click', (e) => {
+      if (e.target.tagName === 'SELECT') return;
+      if (e.ctrlKey || e.metaKey) {
+        if (selectedRows.has(v.id)) selectedRows.delete(v.id);
+        else selectedRows.add(v.id);
+      } else if (e.shiftKey && selectedRows.size > 0) {
+        const ids = voidData.map(x => x.id);
+        const last = [...selectedRows].pop();
+        const i1 = ids.indexOf(last), i2 = ids.indexOf(v.id);
+        const [lo,hi] = [Math.min(i1,i2), Math.max(i1,i2)];
+        for (let i = lo; i <= hi; i++) selectedRows.add(ids[i]);
+      } else {
+        selectedRows.clear();
+        selectedRows.add(v.id);
+      }
+      updateSelection();
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECTION SYNC (grid ↔ faux 3D)
+// ═══════════════════════════════════════════════════════════
+const FAUX_POS = [
+  { id:1,  x:22, y:38, w:28, h:22 },
+  { id:2,  x:55, y:30, w:35, h:28 },
+  { id:3,  x:38, y:55, w:24, h:18 },
+  { id:4,  x:70, y:42, w:30, h:22 },
+  { id:5,  x:12, y:52, w:20, h:16 },
+  { id:6,  x:48, y:20, w:26, h:20 },
+  { id:7,  x:75, y:60, w:22, h:18 },
+  { id:8,  x:30, y:65, w:32, h:22 },
+  { id:9,  x:60, y:15, w:26, h:20 },
+  { id:10, x:18, y:28, w:22, h:16 },
+  { id:11, x:82, y:35, w:18, h:14 },
+  { id:12, x:44, y:70, w:30, h:20 },
+];
+
+function buildFauxScene() {
+  const container = document.getElementById('faux-elements');
+  container.innerHTML = '';
+  FAUX_POS.forEach(fp => {
+    const el = document.createElement('div');
+    el.className = 'faux-el';
+    el.id = 'faux-' + fp.id;
+    el.style.left = fp.x + '%';
+    el.style.top = fp.y + '%';
+    el.style.width = fp.w + 'px';
+    el.style.height = fp.h + 'px';
+    container.appendChild(el);
+  });
+}
+
+function updateSelection() {
+  // Update grid rows
+  document.querySelectorAll('#grid-body tr').forEach(tr => {
+    const id = parseInt(tr.dataset.id);
+    tr.classList.toggle('row-selected', selectedRows.has(id));
+  });
+
+  // Update faux elements
+  const selClass = 'selected-' + state.highlightStyle;
+  document.querySelectorAll('.faux-el').forEach(el => {
+    el.classList.remove('selected-glow','selected-outline','selected-fill');
+  });
+
+  const badge = document.getElementById('fit-camera-badge');
+  if (selectedRows.size > 0) {
+    selectedRows.forEach(id => {
+      const el = document.getElementById('faux-' + id);
+      if (el) {
+        el.classList.add(selClass);
+        // Apply intensity via CSS custom property trick
+        applyIntensity(el);
+      }
+    });
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function applyIntensity(el) {
+  const i = state.intensity;
+  if (state.highlightStyle === 'glow') {
+    const spread = [4, 12, 22][i-1];
+    const opacity = ['.25', '.45', '.7'][i-1];
+    el.style.boxShadow = `0 0 ${spread}px ${Math.floor(spread/3)}px hsl(var(--accent-h),90%,55%,${opacity}), inset 0 0 ${spread}px hsl(var(--accent-h),90%,55%,.1)`;
+  } else {
+    el.style.boxShadow = '';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUMMARY BAR
+// ═══════════════════════════════════════════════════════════
+function updateSummary() {
+  const counts = {};
+  STATUSES.forEach(s => counts[s] = 0);
+  voidData.forEach(v => counts[v.status]++);
+
+  document.getElementById('summary-text').textContent = `${voidData.length} voids`;
+
+  const pillsEl = document.getElementById('summary-pills');
+  if (state.pills === 'on') {
+    pillsEl.innerHTML = STATUSES
+      .filter(s => counts[s] > 0)
+      .map(s => {
+        const m = STATUS_META[s];
+        return `<span class="status-pill ${m.cls}">${counts[s]} ${m.label}</span>`;
+      }).join('');
+  } else {
+    pillsEl.innerHTML = STATUSES
+      .filter(s => counts[s] > 0)
+      .map(s => `<span style="color:var(--text-dim);font-size:11px">${counts[s]} ${s}</span>`)
+      .join(' · ');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOOLBAR FEEDBACK
+// ═══════════════════════════════════════════════════════════
+let statusTimeout;
+function setStatus(msg) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('rail-status-text').textContent = msg;
+  clearTimeout(statusTimeout);
+}
+
+function showUnsaved() {
+  document.getElementById('unsaved-indicator').style.display = 'inline';
+  document.getElementById('rail-unsaved').style.display = 'inline';
+}
+
+function hideUnsaved() {
+  document.getElementById('unsaved-indicator').style.display = 'none';
+  document.getElementById('rail-unsaved').style.display = 'none';
+}
+
+function fakeClick(btn, msg) {
+  setStatus(msg);
+  btn.style.opacity = '.6';
+  setTimeout(() => btn.style.opacity = '', 200);
+}
+
+function fakeWriteback() {
+  const isChrome = navigator.userAgent.includes('Chrome');
+  setStatus(isChrome ? 'Saved to file — database.db updated' : 'Downloaded updated .db');
+  hideUnsaved();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROMPT OUTPUT
+// ═══════════════════════════════════════════════════════════
+const INTENSITY_LABELS = ['low','medium','high'];
+const LAYOUT_LABELS = {
+  '3d-left':  '3D view on the left and the void grid on the right',
+  '3d-right': '3D view on the right and the void grid on the left',
+  '3d-top':   '3D view above and the void grid below',
+};
+const HIGHLIGHT_LABELS = { glow:'a glow effect', outline:'a solid outline', fill:'a fill tint' };
+
+function updatePrompt() {
+  const parts = [];
+  const D = DEFAULTS;
+
+  // Layout
+  if (state.layout !== D.layout) {
+    parts.push(`Place the ${LAYOUT_LABELS[state.layout]}`);
+  }
+
+  // Split
+  if (state.split !== D.split) {
+    const qualitative = state.split >= 68 ? 'spacious, 3D-heavy' : state.split <= 45 ? 'grid-focused' : 'even';
+    parts.push(`split the view ${qualitative} (${state.split}% to the 3D pane)`);
+  }
+
+  // Toolbar
+  if (state.toolbar !== D.toolbar) {
+    parts.push(`place tools in a left rail rather than a top bar`);
+  }
+
+  // Row height
+  if (state.rowHeight !== D.rowHeight) {
+    const q = state.rowHeight <= 28 ? 'very compact, dense' : state.rowHeight <= 34 ? 'compact' : state.rowHeight <= 42 ? 'comfortable' : 'airy, spacious';
+    parts.push(`use a ${q} grid (${state.rowHeight}px rows)`);
+  }
+
+  // Pills
+  if (state.pills !== D.pills) {
+    parts.push(`show status values as plain text without color-coded pills`);
+  }
+
+  // Highlight style
+  if (state.highlightStyle !== D.highlightStyle || state.intensity !== D.intensity) {
+    const iLabel = INTENSITY_LABELS[state.intensity - 1];
+    parts.push(`highlight selected 3D elements with ${HIGHLIGHT_LABELS[state.highlightStyle]} at ${iLabel} intensity`);
+  } else if (state.intensity !== D.intensity) {
+    parts.push(`highlight selected 3D elements at ${INTENSITY_LABELS[state.intensity-1]} intensity`);
+  }
+
+  // Theme
+  if (state.theme !== D.theme) {
+    parts.push(`use a light theme`);
+  }
+
+  // Hue
+  if (state.hue !== D.hue) {
+    const hueName = hueToName(state.hue);
+    parts.push(`accent color is a ${hueName} (hue ${state.hue}°)`);
+  }
+
+  // Radius
+  if (state.radius !== D.radius) {
+    const q = state.radius === 0 ? 'sharp (0px)' : state.radius <= 4 ? 'subtle ('+state.radius+'px)' : state.radius <= 10 ? 'standard ('+state.radius+'px)' : 'rounded ('+state.radius+'px)';
+    parts.push(`panel corners are ${q}`);
+  }
+
+  // Columns
+  const shownExtra = Object.entries(state.cols).filter(([k,v]) => v && !DEFAULTS.cols[k]).map(([k]) => k);
+  const hiddenDefault = Object.entries(state.cols).filter(([k,v]) => !v && DEFAULTS.cols[k]).map(([k]) => k);
+  if (shownExtra.length) parts.push(`also show the ${shownExtra.map(colLabel).join(', ')} column(s) by default`);
+  if (hiddenDefault.length) parts.push(`hide the ${hiddenDefault.map(colLabel).join(', ')} column(s) by default`);
+
+  // Fixed facts (always included)
+  const fixedFacts = [
+    `The six exact approval status values (case-sensitive, lowercase with spaces) are: "concept", "open for review", "approved", "rejected", "released for execution", "executed" — these must match the VoidManager Revit add-in exactly.`,
+    `The Status column is the only editable column in the grid.`,
+    `Selecting one or more grid rows must highlight the matching 3D element(s) in the viewer and trigger a fit-to-element camera move.`,
+    `The app is fully client-side: it loads a local .ifc file and a local SQLite .db file via the File System Access API (Chromium) with a download fallback for other browsers.`,
+  ];
+
+  let intro;
+  if (parts.length === 0) {
+    intro = `Build the /viewer page using the default layout: 3D view on the left (60% width), void grid on the right, top toolbar, comfortable grid rows (36px), dark theme, blue/teal accent (hue 200°), color-coded status pills, and glow-style selection highlight at medium intensity.`;
+  } else {
+    intro = `Build the /viewer page with the following design choices: ${parts.join('; ')}.`;
+  }
+
+  const fullPrompt = intro + '\n\n' + fixedFacts.join(' ');
+  document.getElementById('prompt-output').textContent = fullPrompt;
+}
+
+function hueToName(h) {
+  if (h < 15 || h >= 345) return 'warm red';
+  if (h < 40) return 'warm orange';
+  if (h < 65) return 'yellow-amber';
+  if (h < 85) return 'yellow-green';
+  if (h < 150) return 'green';
+  if (h < 185) return 'teal';
+  if (h < 225) return 'blue';
+  if (h < 265) return 'indigo';
+  if (h < 300) return 'purple';
+  if (h < 330) return 'pink-magenta';
+  return 'crimson';
+}
+
+function colLabel(k) {
+  return { locX:'Location X', locY:'Location Y', locZ:'Location Z',
+           thickness:'Thickness', host:'Host', assignedTo:'Assigned To' }[k] || k;
+}
+
+// ═══════════════════════════════════════════════════════════
+// UPDATE ALL
+// ═══════════════════════════════════════════════════════════
+function updateAll() {
+  applyStateToDOM();
+  renderGrid();
+  buildFauxScene();
+  updateSelection();
+  updateSummary();
+  updatePrompt();
+  updateControlsUI();
+}
+
+// ═══════════════════════════════════════════════════════════
+// COPY BUTTON
+// ═══════════════════════════════════════════════════════════
+function copyPrompt() {
+  const text = document.getElementById('prompt-output').textContent;
+  const btn = document.getElementById('copy-btn');
+
+  const doFeedback = () => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.classList.remove('copied'); }, 1800);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(doFeedback).catch(() => fallbackCopy(text, doFeedback));
+  } else {
+    fallbackCopy(text, doFeedback);
+  }
+}
+
+function fallbackCopy(text, cb) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); cb(); } catch(e) {}
+  document.body.removeChild(ta);
+}
+
+// ═══════════════════════════════════════════════════════════
+// CONTROLS WIRING
+// ═══════════════════════════════════════════════════════════
+function updateControlsUI() {
+  // Layout cards
+  document.querySelectorAll('.layout-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.layout === state.layout);
+  });
+
+  // Sliders + value labels
+  setSlider('split-slider', 'split-val', state.split, v => v + '%');
+  setSlider('rowh-slider',  'rowh-val',  state.rowHeight, v => v + 'px');
+  setSlider('intensity-slider', 'intensity-val', state.intensity, v => ['Low','Medium','High'][v-1]);
+  setSlider('hue-slider', 'hue-val', state.hue, v => v + '°');
+  setSlider('radius-slider', 'radius-val', state.radius, v => v + 'px');
+
+  // Hue cursor
+  const cursor = document.getElementById('hue-cursor');
+  cursor.style.left = (state.hue / 360 * 100) + '%';
+  cursor.style.background = `hsl(${state.hue},80%,55%)`;
+
+  // Seg controls
+  setSegActive('toolbar-seg', state.toolbar);
+  setSegActive('pills-seg', state.pills);
+  setSegActive('highlight-seg', state.highlightStyle);
+  setSegActive('theme-seg', state.theme);
+
+  // Checkboxes
+  document.querySelectorAll('#col-toggles input[type=checkbox]').forEach(cb => {
+    cb.checked = !!state.cols[cb.dataset.col];
+  });
+
+  // Preset active state
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    const preset = PRESETS.find(p => p.name === btn.dataset.preset);
+    if (!preset) return;
+    const match = statesMatch(state, preset.s);
+    btn.classList.toggle('active', match);
+  });
+}
+
+function setSlider(sliderId, valId, val, fmt) {
+  document.getElementById(sliderId).value = val;
+  document.getElementById(valId).textContent = fmt(val);
+}
+
+function setSegActive(groupId, val) {
+  document.querySelectorAll(`#${groupId} button`).forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+}
+
+function statesMatch(a, b) {
+  const flat = s => JSON.stringify({
+    layout:s.layout, split:s.split, toolbar:s.toolbar, rowHeight:s.rowHeight,
+    pills:s.pills, highlightStyle:s.highlightStyle, intensity:s.intensity,
+    theme:s.theme, hue:s.hue, radius:s.radius,
+    cols: JSON.stringify(s.cols)
+  });
+  return flat(a) === flat(b);
+}
+
+// ═══════════════════════════════════════════════════════════
+// EVENT BINDING
+// ═══════════════════════════════════════════════════════════
+function bindControls() {
+  // Layout cards
+  document.querySelectorAll('.layout-card').forEach(card => {
+    card.addEventListener('click', () => {
+      state.layout = card.dataset.layout;
+      updateAll();
+    });
+  });
+
+  // Sliders
+  document.getElementById('split-slider').addEventListener('input', e => {
+    state.split = +e.target.value;
+    updateAll();
+  });
+  document.getElementById('rowh-slider').addEventListener('input', e => {
+    state.rowHeight = +e.target.value;
+    updateAll();
+  });
+  document.getElementById('intensity-slider').addEventListener('input', e => {
+    state.intensity = +e.target.value;
+    updateAll();
+  });
+  document.getElementById('hue-slider').addEventListener('input', e => {
+    state.hue = +e.target.value;
+    updateAll();
+  });
+  document.getElementById('radius-slider').addEventListener('input', e => {
+    state.radius = +e.target.value;
+    updateAll();
+  });
+
+  // Seg controls
+  bindSeg('toolbar-seg', val => { state.toolbar = val; });
+  bindSeg('pills-seg', val => { state.pills = val; });
+  bindSeg('highlight-seg', val => { state.highlightStyle = val; });
+  bindSeg('theme-seg', val => { state.theme = val; });
+
+  // Checkboxes
+  document.querySelectorAll('#col-toggles input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.cols[cb.dataset.col] = cb.checked;
+      updateAll();
+    });
+  });
+
+  // Presets
+  const presetsRow = document.getElementById('presets-row');
+  PRESETS.forEach(preset => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.dataset.preset = preset.name;
+    btn.innerHTML = preset.name + (preset.isDefault ? '<span class="default-tag">★</span>' : '');
+    btn.addEventListener('click', () => {
+      Object.assign(state, JSON.parse(JSON.stringify(preset.s)));
+      state.cols = JSON.parse(JSON.stringify(preset.s.cols));
+      updateAll();
+    });
+    presetsRow.appendChild(btn);
+  });
+}
+
+function bindSeg(groupId, setter) {
+  document.querySelectorAll(`#${groupId} button`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      setter(btn.dataset.val);
+      updateAll();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+bindControls();
+updateAll();
+</script>
+</body>
+</html>
