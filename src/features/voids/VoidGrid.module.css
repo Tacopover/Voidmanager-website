@@ -29,6 +29,30 @@
   text-overflow: ellipsis;
 }
 
+/* M14: bulk status select + unsaved-edits badge */
+.bulkSelect {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.15rem 0.4rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dirtyBadge {
+  font-size: 0.72rem;
+  padding: 0.12em 0.5em;
+  border-radius: 20px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* Grid container: fills remaining height */
 .gridContainer {
   flex: 1;
@@ -38,10 +62,11 @@
   overflow: hidden;
 }
 
-/* Column chooser button */
+/* Column chooser button — pushed to the right edge of the toolbar */
 .chooserWrapper {
   position: relative;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .chooserBtn {

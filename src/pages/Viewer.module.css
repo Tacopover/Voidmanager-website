@@ -26,16 +26,74 @@
   gap: 0;
 }
 
-/* Top bar: project selector + badges */
+/* Slim merged bar: brand + nav + project selector + controls */
 .topBar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.45rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0.2rem 0.6rem;
+  min-height: 34px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-radius: var(--radius) var(--radius) 0 0;
   flex-shrink: 0;
+}
+
+/* Brand + nav merged into the slim bar (global nav is hidden on /viewer) */
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+}
+
+.nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.navLink,
+.navLinkActive {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 0.82rem;
+  padding-bottom: 1px;
+}
+
+.navLinkActive {
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* Pushes everything after it to the right side of the bar */
+.barSpacer {
+  flex: 1;
+}
+
+/* Draggable divider between the 3D pane and the grid */
+.divider {
+  height: 6px;
+  flex: 0 0 auto;
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  cursor: row-resize;
+  position: relative;
+}
+
+.divider::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.divider:hover::after {
+  background: var(--accent);
 }
 
 .projectLabel {
@@ -82,10 +140,10 @@
   border: 1px solid var(--border);
 }
 
-/* 3D viewer pane — real Three.js canvas (M2 Stage A) */
+/* 3D viewer pane — dominant; grows to fill the space above the grid */
 .threeDPane {
-  height: 420px;
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-height: 120px;
   background: var(--bg-elev);
   border: 1px solid var(--border);
   border-top: none;
@@ -93,12 +151,13 @@
   overflow: hidden;
 }
 
-/* Grid pane fills the rest */
+/* Grid pane — fixed (resizable) height set inline via the split divider */
 .gridPane {
-  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--border);
+  border-top: none;
 }
 
 .loadingOverlay {

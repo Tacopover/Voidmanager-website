@@ -1,0 +1,54 @@
+/* PropertyBrowser — right-side IFC attribute panel */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: var(--text-dim, #94a3b8);
+  padding: 0.5rem 0;
+}
+
+.elementLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fbbf24; /* amber — matches IFC highlight colour */
+  margin-bottom: 0.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.7rem;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: block;
+}
+
+.row:hover {
+  background: rgba(51, 65, 85, 0.4);
+}
+
+.key {
+  color: var(--text-dim, #64748b);
+  padding: 2px 6px 2px 0;
+  vertical-align: top;
+  white-space: nowrap;
+  width: 40%;
+}
+
+.val {
+  color: var(--text, #e2e8f0);
+  padding: 2px 0;
+  vertical-align: top;
+  word-break: break-word;
+}

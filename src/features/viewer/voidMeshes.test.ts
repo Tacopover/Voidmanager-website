@@ -155,6 +155,29 @@ describe('buildVoidMeshes', () => {
     const { byVoidId } = buildVoidMeshes([void_]);
     expect(byVoidId.has(11)).toBe(true);
   });
+
+  it('rectangle X-axis direction: height axis aligns with Revit Z (vertical)', () => {
+    // Regression: X-axis wall voids previously had width/height swapped because
+    // setFromUnitVectors left roll unconstrained, mapping local +Y to horizontal.
+    const xVoid = makeRect({ id: 30, direction: { x: 1, y: 0, z: 0 } });
+    const { byVoidId } = buildVoidMeshes([xVoid]);
+    const mesh = byVoidId.get(30)!;
+    const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(mesh.quaternion);
+    // Local +Y (height) must be parallel to Revit Z (0,0,1), not horizontal.
+    expect(localY.x).toBeCloseTo(0);
+    expect(localY.y).toBeCloseTo(0);
+    expect(Math.abs(localY.z)).toBeCloseTo(1);
+  });
+
+  it('rectangle Y-axis direction: height axis aligns with Revit Z (vertical)', () => {
+    const yVoid = makeRect({ id: 31, direction: { x: 0, y: 1, z: 0 } });
+    const { byVoidId } = buildVoidMeshes([yVoid]);
+    const mesh = byVoidId.get(31)!;
+    const localY = new THREE.Vector3(0, 1, 0).applyQuaternion(mesh.quaternion);
+    expect(localY.x).toBeCloseTo(0);
+    expect(localY.y).toBeCloseTo(0);
+    expect(Math.abs(localY.z)).toBeCloseTo(1);
+  });
 });
 
 // ---------------------------------------------------------------------------

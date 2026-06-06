@@ -31,11 +31,28 @@
   position: absolute;
   top: 0.5rem;
   left: 0.5rem;
+  right: 0.5rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   z-index: 10;
   pointer-events: none; /* let clicks through to canvas by default */
+}
+
+/* Model browser drawer — left side, below the toolbar row */
+.browserDrawer {
+  position: absolute;
+  top: 2.75rem;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  width: 260px;
+  z-index: 9;
+  background: rgba(15, 17, 23, 0.92);
+  border: 1px solid var(--border, #334155);
+  border-radius: var(--radius, 6px);
+  overflow: hidden;
+  backdrop-filter: blur(4px);
 }
 
 .toolbar > * {
@@ -63,17 +80,54 @@
   cursor: default;
 }
 
-/* The file input is visible but compact — Playwright can interact with it */
+/* File input: hidden visually; kept in DOM so Playwright setInputFiles() still works */
 .fileInput {
-  font-size: 0.75rem;
-  color: var(--text-dim, #94a3b8);
-  /* Keep it visible and accessible for tests */
-  max-width: 140px;
-  background: rgba(30, 41, 59, 0.85);
+  display: none;
+}
+
+/* Property browser drawer — right side, below the toolbar row */
+.propertyDrawer {
+  position: absolute;
+  top: 2.75rem;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  width: 260px;
+  z-index: 9;
+  background: rgba(15, 17, 23, 0.92);
   border: 1px solid var(--border, #334155);
   border-radius: var(--radius, 6px);
-  padding: 0.2rem 0.4rem;
+  overflow: hidden;
   backdrop-filter: blur(4px);
+}
+
+/* Loading progress bar — thin strip at top edge during IFC load */
+.loadingBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.loadingBarFill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  transition: width 0.15s ease-out;
+  border-radius: 0 2px 2px 0;
+}
+
+@keyframes loadingSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.loadingBarIndeterminate {
+  width: 25%;
+  animation: loadingSlide 1.4s ease-in-out infinite;
 }
 
 .statusBadge {

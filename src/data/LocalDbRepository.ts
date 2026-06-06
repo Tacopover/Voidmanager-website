@@ -33,6 +33,7 @@
 
 import type { Database, QueryExecResult } from 'sql.js';
 import { DICT, TABLE, DB_BOOLEAN, isApprovalStatus } from './schema';
+import type { ApprovalStatus } from './schema';
 import type { VoidRepository, VoidRow, ProjectSummary, ListVoidsOptions } from './VoidRepository';
 
 // ---------------------------------------------------------------------------
@@ -163,6 +164,17 @@ export class LocalDbRepository implements VoidRepository {
 
     return [...circles, ...rects].map((raw) =>
       this.#decodeVoidRow(raw, storyMap, userEmailMap, hostMap),
+    );
+  }
+
+  // -------------------------------------------------------------------------
+  // updateVoidStatus — SEAM ONLY (write-back deferred; see VoidRepository docs)
+  // -------------------------------------------------------------------------
+  async updateVoidStatus(_voidId: number, _status: ApprovalStatus): Promise<void> {
+    throw new Error(
+      '[LocalDbRepository] Status write-back is not implemented. The VoidManager .db is a ' +
+        'mutation-versioned object store, so a faithful write is not a simple UPDATE; status ' +
+        'edits are in-memory only this round. See docs/SCHEMA_FINDINGS.md.',
     );
   }
 

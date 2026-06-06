@@ -109,4 +109,15 @@ export interface VoidRepository {
    *     are returned (fails loudly if D_StatusOfApproval is missing).
    */
   listVoids(opts?: ListVoidsOptions): Promise<VoidRow[]>;
+
+  /**
+   * Persist a new approval status for a void.
+   *
+   * SEAM ONLY — write-back is deferred. The `.db` is a dictionary-encoded,
+   * mutation-versioned object store, so a faithful write is NOT a simple UPDATE
+   * (see docs/SCHEMA_FINDINGS.md). The UI edits status in-memory only this round;
+   * it does NOT call this method. A future LocalDbRepository (or CloudRepository)
+   * implements the real mutation-versioned write behind this same signature.
+   */
+  updateVoidStatus(voidId: number, status: ApprovalStatus): Promise<void>;
 }

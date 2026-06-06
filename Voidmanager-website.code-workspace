@@ -1,0 +1,13 @@
+{
+  "folders": [
+	{
+		"path": "."
+	},
+	{
+		"path": "../../VoidManager/VmoViewer"
+	}
+],
+  "settings": {
+    "liveServer.settings.multiRootWorkspaceName": "Voidmanager-website"
+  }
+}

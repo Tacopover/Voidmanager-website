@@ -8,13 +8,15 @@
  * M6: IndexedDB config caching — save/restore session without re-picking files.
  */
 
-import { useCallback, useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect, type ReactNode } from 'react';
+import { NavLink } from 'react-router-dom';
 import DbLoader from '../features/viewer/DbLoader';
 import ThreeDViewer, { type ThreeDViewerHandle } from '../features/viewer/ThreeDViewer';
 import VoidGrid from '../features/voids/VoidGrid';
 import { createLocalRepository } from '../data/sqlEngine';
 import type { VoidRepository, VoidRow, ProjectSummary } from '../data/VoidRepository';
 import { saveConfig, getMostRecent } from '../features/config/configStore';
+import { clear as clearSelection } from '../store/selectionStore';
 import styles from './Viewer.module.css';
 
 // ---------------------------------------------------------------------------
@@ -25,6 +27,36 @@ type ViewerPhase =
   | { tag: 'needsDb' }
   | { tag: 'loading' }
   | { tag: 'ready'; repo: VoidRepository; canWriteBack: boolean };
+
+// ---------------------------------------------------------------------------
+// Slim merged bar — brand + nav (always present on /viewer) + right-side controls.
+// The global nav is hidden on /viewer (App.tsx), so this carries Home/Viewer.
+// ---------------------------------------------------------------------------
+
+function ViewerBar({ children }: { children?: ReactNode }) {
+  return (
+    <div className={styles.topBar}>
+      <span className={styles.brand}>VoidManager</span>
+      <nav className={styles.nav}>
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) => (isActive ? styles.navLinkActive : styles.navLink)}
+        >
+          Home
+        </NavLink>
+        <NavLink
+          to="/viewer"
+          className={({ isActive }) => (isActive ? styles.navLinkActive : styles.navLink)}
+        >
+          Viewer
+        </NavLink>
+      </nav>
+      <span className={styles.barSpacer} />
+      {children}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Viewer component
@@ -51,9 +83,6 @@ export default function Viewer() {
   // Badge: FS Access vs fallback
   const [canWriteBack, setCanWriteBack] = useState(false);
 
-  // Selected void IDs (grid → 3D sync)
-  const [selectedVoidIds, setSelectedVoidIds] = useState<number[]>([]);
-
   // M6: retain dbBytes so we can bundle them into a saved config
   const dbBytesRef = useRef<Uint8Array | null>(null);
   const dbNameRef = useRef<string>('session');
@@ -70,6 +99,36 @@ export default function Viewer() {
 
   // M6: fragment models awaiting restore once the 3D viewer is mounted + ready.
   const [pendingModels, setPendingModels] = useState<{ id: string; bytes: Uint8Array }[]>([]);
+
+  // M8: resizable 3D/grid split — grid pane height in px (3D pane takes the rest).
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [gridHeight, setGridHeight] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('vm.gridHeight'));
+    return Number.isFinite(saved) && saved > 80 ? saved : 280;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vm.gridHeight', String(Math.round(gridHeight)));
+  }, [gridHeight]);
+
+  // Drag the divider: grid height = distance from pointer to the shell's bottom,
+  // clamped so neither pane collapses.
+  const startSplitDrag = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const shell = shellRef.current;
+    if (!shell) return;
+    const onMove = (ev: PointerEvent) => {
+      const rect = shell.getBoundingClientRect();
+      const fromBottom = rect.bottom - ev.clientY;
+      setGridHeight(Math.max(120, Math.min(rect.height - 160, fromBottom)));
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, []);
 
   // -------------------------------------------------------------------------
   // M6: Check for a saved config on mount
@@ -237,6 +296,8 @@ export default function Viewer() {
     // Empty string means "All projects" (no filter).
     const project = name === '' ? null : name;
     setSelectedProject(project);
+    // Stale selection from the previous project's voids must not linger.
+    clearSelection('api');
     if (phase.tag === 'ready') {
       await loadVoids(phase.repo, project, includeClosed);
     }
@@ -253,15 +314,6 @@ export default function Viewer() {
   }
 
   // -------------------------------------------------------------------------
-  // Selection change (grid → 3D)
-  // -------------------------------------------------------------------------
-  function handleVoidSelectionChange(rows: VoidRow[]) {
-    const ids = rows.map((r) => r.id);
-    setSelectedVoidIds(ids);
-    console.debug('[Viewer] void selection changed', ids.length, 'rows');
-  }
-
-  // -------------------------------------------------------------------------
   // Render helpers
   // -------------------------------------------------------------------------
 
@@ -269,6 +321,7 @@ export default function Viewer() {
     return (
       <div className={styles.viewerShell}>
         <h1 className={styles.srOnly}>Viewer</h1>
+        <ViewerBar />
 
         {/* Inline DB-load error banner (replaces alert()) */}
         {dbError && (
@@ -314,6 +367,7 @@ export default function Viewer() {
     return (
       <div className={styles.viewerShell}>
         <h1 className={styles.srOnly}>Viewer</h1>
+        <ViewerBar />
         <div className={styles.loadingOverlay}>
           <span className={styles.spinner} aria-hidden="true" />
           <p className={styles.loadingLabel}>Opening database…</p>
@@ -324,17 +378,18 @@ export default function Viewer() {
 
   // phase.tag === 'ready'
   return (
-    <div className={styles.viewerShell}>
+    <div className={styles.viewerShell} ref={shellRef}>
       {/* Visually-hidden page heading for accessibility and test selectors */}
       <h1 className={styles.srOnly}>Viewer</h1>
 
-      {/* Top bar: project selector + write-back badge + M6 config controls */}
-      <div className={styles.topBar}>
+      {/* Slim merged bar: brand + nav (left) · project + controls (right) */}
+      <ViewerBar>
         {projects.length > 0 && (
           <label className={styles.projectLabel}>
             <span>Project</span>
             <select
               className={styles.projectSelect}
+              data-testid="project-select"
               value={selectedProject ?? ''}
               onChange={(e) => void handleProjectChange(e.target.value)}
             >
@@ -375,15 +430,25 @@ export default function Viewer() {
             {configStatus}
           </span>
         )}
-      </div>
+      </ViewerBar>
 
-      {/* 3D viewer — M2 Stage B2 */}
+      {/* 3D viewer — M2 Stage B2 (dominant pane, takes remaining height) */}
       <div className={styles.threeDPane}>
-        <ThreeDViewer ref={viewerRef} voids={voids} selectedVoidIds={selectedVoidIds} />
+        <ThreeDViewer ref={viewerRef} voids={voids} />
       </div>
 
-      {/* Void grid */}
-      <div className={styles.gridPane}>
+      {/* Draggable divider — resize the 3D/grid split */}
+      <div
+        className={styles.divider}
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize 3D view and grid"
+        data-testid="split-divider"
+        onPointerDown={startSplitDrag}
+      />
+
+      {/* Void grid (resizable height) */}
+      <div className={styles.gridPane} style={{ height: gridHeight, flex: '0 0 auto' }}>
         {voidsError ? (
           <div className={styles.errorBanner}>{voidsError}</div>
         ) : !voidsLoading && projects.length === 0 ? (
@@ -410,7 +475,6 @@ export default function Viewer() {
             loading={voidsLoading}
             includeClosed={includeClosed}
             onIncludeClosedChange={(v) => void handleIncludeClosedChange(v)}
-            onVoidSelectionChange={handleVoidSelectionChange}
           />
         )}
       </div>

@@ -149,7 +149,7 @@ test.describe('Void mesh + selection sync (M2 Stage B2)', () => {
     await expect(page.getByTestId('ifc-status')).toContainText('Ready', { timeout: 30_000 });
 
     const ifcInput = page.getByTestId('ifc-file-input');
-    await expect(ifcInput).toBeVisible({ timeout: 10_000 });
+    await expect(ifcInput).toBeAttached({ timeout: 10_000 });
     await ifcInput.setInputFiles(IFC_FIXTURE);
 
     // Wait for IFC load to complete (generous timeout for large model)

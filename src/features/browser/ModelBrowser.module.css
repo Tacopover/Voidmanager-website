@@ -1,0 +1,65 @@
+/* Model browser tree — rendered as a left drawer inside the 3D pane. */
+
+.tree {
+  height: 100%;
+  overflow: auto;
+  padding: 0.35rem 0;
+  font-size: 0.8rem;
+  color: var(--text);
+  user-select: none;
+}
+
+.empty {
+  padding: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.item {
+  /* container only; row carries the visuals */
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 3px;
+}
+
+.row:hover {
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.rowSelected {
+  background: rgba(251, 191, 36, 0.18);
+}
+
+.rowSelected:hover {
+  background: rgba(251, 191, 36, 0.26);
+}
+
+.twisty {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  line-height: 1;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.twistySpacer {
+  flex-shrink: 0;
+  width: 14px;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

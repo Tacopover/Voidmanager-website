@@ -129,25 +129,44 @@ function isGarbage(v: VoidRow): boolean {
  * Convention:
  *   - CylinderGeometry → local +Y axis is the cylinder axis.
  *   - BoxGeometry      → local +Z axis is the depth/extrusion axis.
+ *
+ * For BoxGeometry, local +Y (height) is also pinned to Revit Z (0,0,1) so the
+ * void opening's height is always vertical regardless of wall direction.
+ * setFromUnitVectors alone doesn't constrain roll — for X-axis walls this swaps
+ * width and height without the explicit up-pin.
  */
 function orientTo(
   meshPrimaryAxis: 'Y' | 'Z',
   direction: { x: number; y: number; z: number } | null,
 ): THREE.Quaternion {
-  const up = meshPrimaryAxis === 'Y'
-    ? new THREE.Vector3(0, 1, 0)
-    : new THREE.Vector3(0, 0, 1);
-
-  if (!direction) return new THREE.Quaternion(); // identity → default axis
+  if (!direction) return new THREE.Quaternion();
 
   const dir = new THREE.Vector3(direction.x, direction.y, direction.z);
-  const len = dir.length();
-  if (len < 1e-6) return new THREE.Quaternion(); // zero vector → identity
+  if (dir.length() < 1e-6) return new THREE.Quaternion();
+  dir.normalize();
 
-  dir.divideScalar(len); // normalise
-  const q = new THREE.Quaternion();
-  q.setFromUnitVectors(up, dir);
-  return q;
+  if (meshPrimaryAxis === 'Y') {
+    // CylinderGeometry: axis is local +Y; circular cross-section so roll is irrelevant.
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    return q;
+  }
+
+  // BoxGeometry: extrusion along local +Z, height along local +Y.
+  // Build a proper right-handed basis that pins local +Y to Revit Z (vertical).
+  // Without this, setFromUnitVectors leaves roll unconstrained — for X-axis walls
+  // the arbitrary roll swaps the visual width and height dimensions.
+  const revitUp = new THREE.Vector3(0, 0, 1);
+  // For floor/ceiling voids (dir ∥ revitUp), fall back to Revit Y as up hint.
+  const upHint = Math.abs(revitUp.dot(dir)) > 1 - 1e-6
+    ? new THREE.Vector3(0, 1, 0)
+    : revitUp;
+
+  // right = upHint × dir; re-derive up = dir × right for a proper right-handed basis.
+  const localRight = new THREE.Vector3().crossVectors(upHint, dir).normalize();
+  const localUp = new THREE.Vector3().crossVectors(dir, localRight).normalize();
+  const m = new THREE.Matrix4().makeBasis(localRight, localUp, dir);
+  return new THREE.Quaternion().setFromRotationMatrix(m);
 }
 
 // ---------------------------------------------------------------------------

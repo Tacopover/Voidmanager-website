@@ -15,8 +15,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  hasFileSystemAccessApi,
-  pickDirectoryAndLocate,
   pickFileFallback,
   tryReopenSaved,
 } from '../../data/dbLocator';
@@ -68,9 +66,7 @@ export default function DbLoader({ onLoaded }: DbLoaderProps) {
     setPhase('loading');
     setError(null);
     try {
-      const result = hasFileSystemAccessApi()
-        ? await pickDirectoryAndLocate()
-        : await pickFileFallback();
+      const result = await pickFileFallback();
       onLoaded(result.bytes, result.canWriteBack);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -117,20 +113,11 @@ export default function DbLoader({ onLoaded }: DbLoaderProps) {
       <div className={styles.card}>
         <h2 className={styles.title}>Connect your VoidManager data</h2>
 
-        {hasFileSystemAccessApi() ? (
-          <p className={styles.desc}>
-            Click below and select your VoidManager data folder —{' '}
-            <code className={styles.path}>%LOCALAPPDATA%\VoidManager</code>. The app will
-            find the database file automatically. No file is uploaded; everything stays local.
-          </p>
-        ) : (
-          <p className={styles.desc}>
-            Your browser doesn&apos;t support folder access (requires Chrome or Edge). Use the
-            file picker below to open your VoidManager{' '}
-            <code className={styles.path}>.db</code> file directly. You can find it in{' '}
-            <code className={styles.path}>%LOCALAPPDATA%\VoidManager</code>.
-          </p>
-        )}
+        <p className={styles.desc}>
+          Open your VoidManager <code className={styles.path}>.db</code> file directly. You
+          can find it in <code className={styles.path}>%LOCALAPPDATA%\VoidManager</code>. No
+          file is uploaded; everything stays local.
+        </p>
 
         {/* Primary action */}
         <button
@@ -138,27 +125,18 @@ export default function DbLoader({ onLoaded }: DbLoaderProps) {
           onClick={handleConnect}
           disabled={phase === 'loading'}
         >
-          {phase === 'loading'
-            ? 'Opening…'
-            : hasFileSystemAccessApi()
-              ? 'Connect VoidManager folder'
-              : 'Pick .db file'}
+          {phase === 'loading' ? 'Opening…' : 'Pick .db file'}
         </button>
 
-        {/* Secondary: visible file input for Playwright + non-FSA browsers */}
-        <div className={styles.fallbackRow}>
-          <span className={styles.orLabel}>
-            {hasFileSystemAccessApi() ? 'or pick a .db file directly' : 'or drag and drop a .db file'}
-          </span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".db"
-            data-testid="db-file-input"
-            className={styles.fileInput}
-            onChange={handleFileInput}
-          />
-        </div>
+        {/* Hidden file input — Playwright drives this via setInputFiles (data-testid) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".db"
+          data-testid="db-file-input"
+          style={{ display: 'none' }}
+          onChange={handleFileInput}
+        />
 
         {error && <p className={styles.errorMsg}>{error}</p>}
       </div>

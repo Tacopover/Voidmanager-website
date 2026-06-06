@@ -137,7 +137,7 @@ test.describe('M6 — IndexedDB config caching', () => {
 
       // Load the IFC
       const ifcInput = page.getByTestId('ifc-file-input');
-      await expect(ifcInput).toBeVisible({ timeout: 10_000 });
+      await expect(ifcInput).toBeAttached({ timeout: 10_000 });
       await ifcInput.setInputFiles(IFC_FIXTURE);
 
       // Wait for IFC to finish loading — generous timeout for large model

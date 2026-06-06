@@ -56,7 +56,7 @@ async function loadDb(page: Page): Promise<{ errors: string[] }> {
  */
 async function loadIfc(page: Page): Promise<void> {
   const ifcInput = page.getByTestId('ifc-file-input');
-  await expect(ifcInput).toBeVisible({ timeout: 10_000 });
+  await expect(ifcInput).toBeAttached({ timeout: 10_000 });
   await ifcInput.setInputFiles(IFC_FIXTURE);
 
   // Wait until status shows "Loaded N elements" — generous timeout for large model
@@ -88,7 +88,9 @@ test.describe('3D Viewer — IFC loading (M2 Stage A)', () => {
     await loadDb(page);
 
     const ifcInput = page.getByTestId('ifc-file-input');
-    await expect(ifcInput).toBeVisible({ timeout: 10_000 });
+    // Input is intentionally hidden (display:none) — the "Load IFC" button triggers it.
+    // setInputFiles() works on hidden inputs; we assert attached, not visible.
+    await expect(ifcInput).toBeAttached({ timeout: 10_000 });
     await expect(ifcInput).toHaveAttribute('accept', '.ifc');
   });
 

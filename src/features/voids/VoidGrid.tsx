@@ -11,18 +11,23 @@
  *  - Column visibility toggled via gridRef.current.api.applyColumnState()
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import {
   AllCommunityModule,
   ModuleRegistry,
   themeQuartz,
+  type CellValueChangedEvent,
   type ColDef,
+  type GetRowIdParams,
   type GridReadyEvent,
+  type IRowNode,
   type SelectionChangedEvent,
 } from 'ag-grid-community';
 import type { VoidRow } from '../../data/VoidRepository';
-import { APPROVAL_STATUSES } from '../../data/schema';
+import { APPROVAL_STATUSES, type ApprovalStatus } from '../../data/schema';
+import { setSelection, useSelection, type SelectionRef } from '../../store/selectionStore';
+import { mergeDirty } from './statusEdit';
 import styles from './VoidGrid.module.css';
 
 // Register all community modules once (safe to call multiple times).
@@ -112,8 +117,12 @@ function buildColumnDefs(): ColDef<VoidRow>[] {
       colId: 'status',
       headerName: 'Status',
       field: 'status',
-      width: 160,
-      // Plain text — no color pills (per VIEWER_SPEC)
+      width: 170,
+      // Plain text — no color pills (per VIEWER_SPEC).
+      // M14: the ONLY inline-editable column — a fixed-value select dropdown.
+      editable: true,
+      cellEditor: 'agSelectCellEditor',
+      cellEditorParams: { values: [...APPROVAL_STATUSES] },
       filter: 'agTextColumnFilter',
       floatingFilter: true,
       sortable: true,
@@ -333,8 +342,6 @@ export interface VoidGridProps {
   loading: boolean;
   includeClosed: boolean;
   onIncludeClosedChange: (v: boolean) => void;
-  /** TODO: wire to 3D viewer selection sync (M2) */
-  onVoidSelectionChange?: (rows: VoidRow[]) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -346,11 +353,23 @@ export default function VoidGrid({
   loading,
   includeClosed,
   onIncludeClosedChange,
-  onVoidSelectionChange,
 }: VoidGridProps) {
   const gridRef = useRef<AgGridReact<VoidRow>>(null);
   const columnDefs = useMemo(() => buildColumnDefs(), []);
   const summary = useMemo(() => buildSummary(rows), [rows]);
+
+  // Unified selection store (grid ↔ 3D ↔ browser).
+  const selection = useSelection();
+  // Guards the grid's selectionChanged handler while we programmatically reflect
+  // an external (non-grid) selection, so reflection does not echo back to the store.
+  const applyingExternalRef = useRef(false);
+
+  // M14: ids of voids whose status was edited in-memory (not written to the .db).
+  const [dirtyIds, setDirtyIds] = useState<Set<number>>(() => new Set());
+  // Discard dirty edits when the dataset changes (project switch / reload).
+  useEffect(() => {
+    setDirtyIds(new Set());
+  }, [rows]);
 
   // Track which columns are visible for the chooser checkboxes.
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
@@ -378,15 +397,63 @@ export default function VoidGrid({
     // Grid is ready — nothing extra needed for read-only v1.
   }, []);
 
-  const onSelectionChanged = useCallback(
-    (event: SelectionChangedEvent<VoidRow>) => {
-      const selected = event.api.getSelectedRows();
-      // TODO (M2): wire selected rows to 3D viewer highlight + camera fit
-      console.debug('[VoidGrid] selection changed', selected.length, 'rows', selected);
-      onVoidSelectionChange?.(selected);
-    },
-    [onVoidSelectionChange],
-  );
+  const onSelectionChanged = useCallback((event: SelectionChangedEvent<VoidRow>) => {
+    // Ignore selection events caused by our own programmatic reflection.
+    if (applyingExternalRef.current) return;
+    const selected = event.api.getSelectedRows();
+    const refs: SelectionRef[] = selected.map((r) => ({ kind: 'void', voidId: r.id }));
+    setSelection(refs, 'grid');
+  }, []);
+
+  // Reflect external (non-grid) selection changes into the grid's row selection.
+  // When the change originated in the grid we skip — the grid is already in sync.
+  // The store's key-set no-op guard + applyingExternalRef break any feedback loop.
+  useEffect(() => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    if (selection.source === 'grid') return;
+    const wanted = new Set<number>();
+    for (const ref of selection.refs) {
+      if (ref.kind === 'void') wanted.add(ref.voidId);
+    }
+    applyingExternalRef.current = true;
+    let firstWantedNode: IRowNode<VoidRow> | null = null;
+    try {
+      api.forEachNode((node) => {
+        const id = node.data?.id;
+        const shouldSelect = id != null && wanted.has(id);
+        if (node.isSelected() !== shouldSelect) node.setSelected(shouldSelect);
+        if (shouldSelect && !firstWantedNode) firstWantedNode = node;
+      });
+    } finally {
+      queueMicrotask(() => {
+        applyingExternalRef.current = false;
+      });
+    }
+    if (firstWantedNode) {
+      api.ensureNodeVisible(firstWantedNode, 'middle');
+    }
+  }, [selection]);
+
+  // M14: mark a void dirty when its status is edited inline.
+  const onCellValueChanged = useCallback((e: CellValueChangedEvent<VoidRow>) => {
+    const id = e.data?.id;
+    if (id != null) setDirtyIds((prev) => mergeDirty(prev, [id]));
+  }, []);
+
+  // M14: bulk-apply a status to every selected row (in-memory only).
+  const handleBulkStatus = useCallback((status: ApprovalStatus) => {
+    const api = gridRef.current?.api;
+    if (!api) return;
+    const ids: number[] = [];
+    for (const node of api.getSelectedNodes()) {
+      if (node.data) {
+        node.setDataValue('status', status);
+        ids.push(node.data.id);
+      }
+    }
+    if (ids.length > 0) setDirtyIds((prev) => mergeDirty(prev, ids));
+  }, []);
 
   const handleColumnToggle = useCallback(
     (colId: string, visible: boolean) => {
@@ -409,6 +476,36 @@ export default function VoidGrid({
       {/* Toolbar row */}
       <div className={styles.toolbar}>
         <span className={styles.summary}>{summary}</span>
+
+        {/* M14: bulk status edit for the selected rows */}
+        <select
+          className={styles.bulkSelect}
+          data-testid="bulk-status-select"
+          value=""
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) {
+              handleBulkStatus(v as ApprovalStatus);
+              e.target.value = '';
+            }
+          }}
+          title="Set the approval status for all selected rows"
+        >
+          <option value="">Set status…</option>
+          {APPROVAL_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+
+        {/* M14: in-memory unsaved-edits indicator (write-back deferred) */}
+        {dirtyIds.size > 0 && (
+          <span className={styles.dirtyBadge} data-testid="dirty-status" title="Status edits are in-memory only — not written to the .db">
+            {dirtyIds.size} unsaved
+          </span>
+        )}
+
         <ColumnChooser
           visibleCols={visibleCols}
           onToggle={handleColumnToggle}
@@ -427,8 +524,10 @@ export default function VoidGrid({
           columnDefs={columnDefs}
           defaultColDef={defaultColDef}
           rowSelection={rowSelection}
+          getRowId={(p: GetRowIdParams<VoidRow>) => String(p.data.id)}
           onGridReady={onGridReady}
           onSelectionChanged={onSelectionChanged}
+          onCellValueChanged={onCellValueChanged}
           suppressCellFocus={false}
           animateRows={false}
         />

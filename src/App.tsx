@@ -20,26 +20,32 @@ function NavBar() {
   );
 }
 
-/** Selects the right <main> class: full-bleed for viewer, centred for other pages. */
+/**
+ * Selects the right <main> class: full-bleed for viewer, centred for other pages.
+ * The global nav bar is hidden on /viewer — the viewer's own slim merged bar
+ * carries the Home/Viewer links so the 3D view gets maximum vertical space.
+ */
 function AppMain() {
   const isViewer = !!useMatch('/viewer');
   return (
-    <main className={isViewer ? 'app-main--viewer' : 'app-main'}>
-      <Suspense fallback={<div className="route-loading">Loading viewer…</div>}>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/viewer" element={<Viewer />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </main>
+    <>
+      {!isViewer && <NavBar />}
+      <main className={isViewer ? 'app-main--viewer' : 'app-main'}>
+        <Suspense fallback={<div className="route-loading">Loading viewer…</div>}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/viewer" element={<Viewer />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </main>
+    </>
   );
 }
 
 export default function App() {
   return (
     <HashRouter>
-      <NavBar />
       <AppMain />
     </HashRouter>
   );
