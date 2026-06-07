@@ -7,9 +7,10 @@ test('home renders and links to the viewer', async ({ page }) => {
   });
 
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'VoidManager', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find every clash/i })).toBeVisible();
 
-  await page.getByRole('link', { name: /open the 3d viewer/i }).click();
+  // Header nav carries an exact "Viewer" link → /#/viewer (HashRouter).
+  await page.getByRole('link', { name: 'Viewer', exact: true }).click();
   await expect(page).toHaveURL(/#\/viewer$/);
   await expect(page.getByRole('heading', { name: 'Viewer' })).toBeVisible();
 
@@ -19,5 +20,5 @@ test('home renders and links to the viewer', async ({ page }) => {
 test('unknown route redirects home', async ({ page }) => {
   await page.goto('/#/does-not-exist');
   await expect(page).toHaveURL(/#\/$/);
-  await expect(page.getByRole('heading', { name: 'VoidManager', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find every clash/i })).toBeVisible();
 });
