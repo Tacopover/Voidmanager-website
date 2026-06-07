@@ -53,9 +53,13 @@ test.describe('M8 — slim merged bar + layout', () => {
     await expect(page.getByRole('link', { name: 'Viewer' })).toBeVisible();
   });
 
-  test('home route still shows the global nav', async ({ page }) => {
+  test('home route renders the marketing header (not the old global nav)', async ({ page }) => {
     await page.goto('/#/');
-    await expect(page.locator('header.app-nav')).toHaveCount(1);
+    // The old global app-nav is gone; Home owns its own marketing header.
+    await expect(page.locator('header.app-nav')).toHaveCount(0);
+    await expect(page.locator('header.site-header')).toHaveCount(1);
+    // The header carries a Viewer link to the existing route.
+    await expect(page.getByRole('link', { name: 'Viewer', exact: true })).toBeVisible();
   });
 });
 
