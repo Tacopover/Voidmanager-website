@@ -52,6 +52,106 @@ const IconWindow = () => (
   </svg>
 );
 
+// Window-bar brand mark — replaces the macOS "traffic-light" dots (Void Manager
+// ships on Windows / Revit, so the Apple controls were misleading). It echoes
+// the logo: a blue ring (structure) around a green core (the void).
+const WinGlyph = () => (
+  <svg className="win-glyph" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+    <circle cx="8" cy="8" r="6.4" fill="none" stroke="#4a8fd6" strokeWidth="1.6" />
+    <circle cx="8" cy="8" r="2.5" fill="#54c46a" />
+  </svg>
+);
+
+// ---------------------------------------------------------------------------
+// "Anatomy of a coordinated void" — signature diagram.
+// A structural host wall (hatched concrete, in elevation) with MEP penetrations
+// cut through it. Each void is highlighted and dimensioned; green = mechanical,
+// blue = services — the logo's two colours, standing in for the disciplines
+// that have to be coordinated. Pure SVG so it scales crisply and themes itself.
+// ---------------------------------------------------------------------------
+const VoidAnatomy = () => (
+  <svg
+    className="anatomy__svg"
+    viewBox="0 0 760 440"
+    role="img"
+    aria-label="Section of a structural wall with three coordinated void openings cut where MEP services penetrate it: a green mechanical duct void, a blue services void and a smaller mechanical void — each highlighted and dimensioned, marked approved."
+  >
+    <defs>
+      <pattern id="vmHatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <rect width="10" height="10" fill="#eef2f6" />
+        <line x1="0" y1="0" x2="0" y2="10" stroke="#c2cdd8" strokeWidth="1.3" />
+      </pattern>
+      <linearGradient id="vmDuct" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#5bc46a" />
+        <stop offset="1" stopColor="#2c8038" />
+      </linearGradient>
+      <linearGradient id="vmPipe" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#5b9fe0" />
+        <stop offset="1" stopColor="#275f9e" />
+      </linearGradient>
+    </defs>
+
+    {/* structural host wall — hatched concrete in elevation */}
+    <rect x="64" y="34" width="632" height="362" rx="4" fill="url(#vmHatch)" stroke="#9fb0c0" strokeWidth="1.5" />
+
+    {/* slow scan line for a little life */}
+    <g className="vm-scan">
+      <line x1="380" y1="40" x2="380" y2="390" stroke="#38a34a" strokeWidth="2" opacity="0.14" />
+    </g>
+
+    {/* VOID 1 — mechanical duct penetration (green) */}
+    <g>
+      <rect x="150" y="104" width="176" height="128" rx="16" fill="#e7edf3" stroke="#b9c5d2" strokeWidth="1.5" />
+      <rect x="176" y="130" width="124" height="76" rx="9" fill="url(#vmDuct)" />
+      <rect x="190" y="144" width="96" height="48" rx="5" fill="none" stroke="#ffffff" strokeWidth="1.4" opacity="0.5" />
+      <rect className="vm-ring" x="140" y="94" width="196" height="148" rx="20" fill="none" stroke="#38a34a" strokeWidth="2.2" strokeDasharray="7 6" />
+    </g>
+
+    {/* VOID 2 — round services penetration (blue) */}
+    <g>
+      <circle cx="540" cy="246" r="74" fill="#e7edf3" stroke="#b9c5d2" strokeWidth="1.5" />
+      <circle cx="540" cy="246" r="46" fill="url(#vmPipe)" />
+      <circle cx="540" cy="246" r="31" fill="none" stroke="#ffffff" strokeWidth="1.4" opacity="0.5" />
+      <circle className="vm-ring" cx="540" cy="246" r="86" fill="none" stroke="#3278c8" strokeWidth="2.2" strokeDasharray="7 6" />
+    </g>
+
+    {/* VOID 3 — smaller mechanical, hints "every penetration" */}
+    <g>
+      <circle cx="300" cy="332" r="30" fill="#e7edf3" stroke="#b9c5d2" strokeWidth="1.5" />
+      <circle cx="300" cy="332" r="14" fill="url(#vmDuct)" />
+      <circle className="vm-ring" cx="300" cy="332" r="40" fill="none" stroke="#38a34a" strokeWidth="2" strokeDasharray="6 6" />
+    </g>
+
+    {/* annotations */}
+    <g fontSize="12.5" letterSpacing="0.04em">
+      <text x="146" y="82" fill="#2c8038">Ø300 · DUCT VOID</text>
+      <line x1="612" y1="158" x2="588" y2="184" stroke="#9fb0c0" strokeWidth="1" />
+      <text x="696" y="150" textAnchor="end" fill="#275f9e">Ø200 · SERVICES VOID</text>
+      <text x="80" y="378" fill="#56657a">HOST · STRUCTURAL WALL</text>
+      <text x="680" y="58" textAnchor="end" fill="#56657a">3 PENETRATIONS · 1 HOST</text>
+    </g>
+
+    {/* approved badge */}
+    <g>
+      <rect x="470" y="350" width="186" height="30" rx="15" fill="#ecf7ef" stroke="#38a34a" strokeWidth="1.2" />
+      <circle cx="488" cy="365" r="6.5" fill="#38a34a" />
+      <path d="M485 365 l2.2 2.3 l4-4.6" fill="none" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="503" y="369" fontSize="11.5" fill="#2c8038" letterSpacing="0.06em">STATUS · APPROVED</text>
+    </g>
+
+    {/* legend */}
+    <g fontSize="11" fill="#56657a" letterSpacing="0.05em">
+      <rect x="64" y="410" width="14" height="14" fill="url(#vmHatch)" stroke="#9fb0c0" strokeWidth="1" />
+      <text x="86" y="421">STRUCTURE</text>
+      <circle cx="214" cy="417" r="6" fill="#38a34a" />
+      <text x="226" y="421">MECHANICAL</text>
+      <circle cx="356" cy="417" r="6" fill="#3278c8" />
+      <text x="368" y="421">SERVICES</text>
+      <text x="476" y="421" fill="#2c8038">= COORDINATED</text>
+    </g>
+  </svg>
+);
+
 // ---------------------------------------------------------------------------
 // Content
 // ---------------------------------------------------------------------------
@@ -204,7 +304,7 @@ export default function Home() {
             </div>
             <div className="nav-actions">
               <a className="link" href="#quote" onClick={scrollToId('quote')}>Log in</a>
-              <a className="btn btn-coral btn-sm" href="#quote" onClick={scrollToId('quote')}>Sign up</a>
+              <a className="btn btn-grad btn-sm" href="#quote" onClick={scrollToId('quote')}>Sign up</a>
             </div>
           </nav>
         </div>
@@ -222,7 +322,7 @@ export default function Home() {
             openings — detected, placed, reviewed and approved across your whole team.
           </p>
           <div className="heroB__cta">
-            <a href="#quote" onClick={scrollToId('quote')} className="btn btn-coral btn-lg">
+            <a href="#quote" onClick={scrollToId('quote')} className="btn btn-grad btn-lg">
               Request a quote <span className="arrow">→</span>
             </a>
             <a href="#how" onClick={scrollToId('how')} className="btn btn-ghost-light btn-lg">
@@ -240,8 +340,9 @@ export default function Home() {
         <div className="heroB__shot">
           <div className="window">
             <div className="window__bar">
-              <span className="dot" /><span className="dot" /><span className="dot" />
+              <WinGlyph />
               <span className="title">3D view — voids placed at every penetration</span>
+              <span className="win-tag">Revit · 3D</span>
             </div>
             <img src={hero3dUrl} alt="Revit 3D view: MEP services penetrating structure with void openings placed at each clash" />
           </div>
@@ -251,6 +352,38 @@ export default function Home() {
               <div className="big">73</div>
               <div className="lbl">voids placed</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ============ ANATOMY ============ */}
+      <section className="section anatomy blueprint" id="anatomy" data-screen-label="Anatomy">
+        <div className="container anatomy__grid">
+          <div className="reveal">
+            <span className="eyebrow">The whole idea, in one drawing</span>
+            <h2 className="h2" style={{ marginTop: 16 }}>Anatomy of a coordinated void.</h2>
+            <p className="lede" style={{ marginTop: 18 }}>
+              Wherever MEP services cross structure, Void Manager cuts a correctly-sized opening — dimensioned,
+              hosted and tracked — so every discipline builds from the same set of penetrations.
+            </p>
+            <ul className="anatomy__points">
+              <li>
+                <span className="k b"><IconClash /></span>
+                <div><h4>Penetrations</h4><p>Every clash between MEP and structure, found automatically across the whole model.</p></div>
+              </li>
+              <li>
+                <span className="k g"><IconVoid /></span>
+                <div><h4>Voids</h4><p>A correctly-sized opening at each penetration — round or rectangular, exactly to size.</p></div>
+              </li>
+              <li>
+                <span className="k b"><IconLayers /></span>
+                <div><h4>Coordination</h4><p>Structure, architecture and MEP working from one trusted, approved set of openings.</p></div>
+              </li>
+            </ul>
+          </div>
+          <div className="anatomy__panel reveal">
+            <div className="anatomy__cap"><span className="sw" /> Section · host wall × MEP penetrations</div>
+            <VoidAnatomy />
           </div>
         </div>
       </section>
@@ -307,8 +440,9 @@ export default function Home() {
           <div className="stepper__media reveal">
             <div className="window">
               <div className="window__bar">
-                <span className="dot" /><span className="dot" /><span className="dot" />
+                <WinGlyph />
                 <span className="title">Void Manager — overview &amp; review</span>
+                <span className="win-tag">Web viewer</span>
               </div>
               <img src={shotTableUrl} alt="Void Manager overview table listing voids with level, status, thickness and host element" />
             </div>
@@ -336,7 +470,7 @@ export default function Home() {
             <div className="aboutB__chips">
               <span className="chip dark"><span className="led" /> BIM coordination</span>
               <span className="chip dark"><span className="led" style={{ background: 'var(--blue)' }} /> Structural &amp; MEP</span>
-              <span className="chip dark"><span className="led" style={{ background: 'var(--coral)' }} /> Plugin &amp; web</span>
+              <span className="chip dark"><span className="led" style={{ background: 'var(--green-400)' }} /> Plugin &amp; web</span>
             </div>
           </div>
           <div className="aboutB__stats reveal">
