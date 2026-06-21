@@ -49,22 +49,41 @@ function guardCoord(value: number | null | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Dark theme matching global.css palette
+// Dark theme — brand palette (blue-tinted dark + brand-blue accent), matching
+// global.css :root tokens. Extends the existing themeQuartz params; no competing
+// CSS theme is added.
 // ---------------------------------------------------------------------------
 const darkTheme = themeQuartz.withParams({
-  backgroundColor: '#0f1117',
-  foregroundColor: '#e2e8f0',
-  borderColor: '#2d3748',
-  chromeBackgroundColor: '#161b22',
-  oddRowBackgroundColor: '#161b22',
-  rowHoverColor: '#1e2736',
-  selectedRowBackgroundColor: 'rgba(56, 189, 248, 0.15)',
-  headerBackgroundColor: '#161b22',
-  headerTextColor: '#94a3b8',
+  accentColor: '#3278c8', // brand blue — checkboxes, focus, range selection
+  backgroundColor: '#0e1a28',
+  foregroundColor: '#e6edf5',
+  borderColor: '#27425f',
+  chromeBackgroundColor: '#15273b',
+  oddRowBackgroundColor: '#122236',
+  rowHoverColor: '#1b3149',
+  selectedRowBackgroundColor: 'rgba(50, 120, 200, 0.22)',
+  headerBackgroundColor: '#15273b',
+  headerTextColor: '#9fb1c5',
+  fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+  headerFontFamily: '"IBM Plex Mono", ui-monospace, monospace',
+  headerFontWeight: 600,
   fontSize: 13,
   rowHeight: 34,
   headerHeight: 36,
 });
+
+// ---------------------------------------------------------------------------
+// Status colour-coding — brand semantics. Keys MUST match APPROVAL_STATUSES
+// exactly (the Revit add-in / VmoViewer only recognise these strings).
+// ---------------------------------------------------------------------------
+const STATUS_TEXT_COLOR: Record<ApprovalStatus, string> = {
+  concept: '#9fb1c5', // neutral — not yet started
+  'open for review': '#5b9fe0', // brand blue — in flight
+  approved: '#5bc46a', // brand green — accepted
+  rejected: '#f87171', // red — must keep error semantics legible
+  'released for execution': '#5bc46a', // brand green — go
+  executed: '#5bc46a', // brand green — done
+};
 
 // ---------------------------------------------------------------------------
 // Column definitions
@@ -118,11 +137,16 @@ function buildColumnDefs(): ColDef<VoidRow>[] {
       headerName: 'Status',
       field: 'status',
       width: 170,
-      // Plain text — no color pills (per VIEWER_SPEC).
       // M14: the ONLY inline-editable column — a fixed-value select dropdown.
       editable: true,
       cellEditor: 'agSelectCellEditor',
       cellEditorParams: { values: [...APPROVAL_STATUSES] },
+      // Brand status colour-coding — text-only so it stays legible against the
+      // dark rows and the selected-row blue wash.
+      cellStyle: ({ value }: { value: string }) => ({
+        color: STATUS_TEXT_COLOR[value as ApprovalStatus] ?? 'inherit',
+        fontWeight: 500,
+      }),
       filter: 'agTextColumnFilter',
       floatingFilter: true,
       sortable: true,

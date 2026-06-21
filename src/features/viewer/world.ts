@@ -169,8 +169,8 @@ export async function createWorldController(container: HTMLDivElement): Promise<
 
   components.init();
 
-  // Dark background matching the app theme (#0f172a / --bg)
-  world.scene.three.background = new THREE.Color(0x0f172a);
+  // Dark background matching the brand Home-hero dark (#0e1a28 / --bg)
+  world.scene.three.background = new THREE.Color(0x0e1a28);
 
   // Setup scene defaults (lights, etc.)
   world.scene.setup();

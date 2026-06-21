@@ -1,13 +1,46 @@
+/* IBM Plex — shared UI + mono families (matches the Home page brand). */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 :root {
-  --bg: #0f1117;
-  --bg-elev: #161b22;
-  --border: #2d3748;
-  --text: #e2e8f0;
-  --text-dim: #94a3b8;
-  --accent: hsl(200, 80%, 55%);
+  /* -------------------------------------------------------------------------
+   * Brand duo — straight from the Void Manager logo (blue + green).
+   * Kept in sync with Home.css. These are the single shared source the dark
+   * Viewer reads (Home redeclares its own scoped copies, so it is unaffected).
+   * ----------------------------------------------------------------------- */
+  --blue: #3278c8;
+  --blue-700: #275f9e;
+  --blue-900: #16385f;
+  --blue-050: #eef4fb;
+  --blue-400: #5b9fe0; /* vivid blue for accents on dark backgrounds */
+
+  --green: #38a34a;
+  --green-700: #2c8038;
+  --green-400: #5bc46a; /* vivid green for accents on dark backgrounds */
+  --green-050: #ecf7ef;
+
+  /* Logo gradient — primary emphasis / hairlines. */
+  --grad: linear-gradient(118deg, var(--blue) 0%, var(--green) 100%);
+
+  /* -------------------------------------------------------------------------
+   * Dark UI surface — blue-tinted to match the Home hero (#0e1a28), so the
+   * working 3D tool feels like the same product as the marketing page.
+   * ----------------------------------------------------------------------- */
+  --bg: #0e1a28;
+  --bg-elev: #15273b;
+  --bg-elev-2: #1b3149; /* hover / lifted rows */
+  --border: #27425f;
+  --text: #e6edf5;
+  --text-dim: #9fb1c5;
+
+  /* --accent now points at brand blue; --accent-2 is the vivid green.
+   * Repointing here rebrands every Viewer element that reads --accent
+   * (dividers, spinner, focus rings, checkboxes) plus global .btn--primary. */
+  --accent: var(--blue);
+  --accent-2: var(--green-400);
+
   --radius: 4px;
-  --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'Cascadia Code', 'Consolas', monospace;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', 'Consolas', monospace;
 }
 
 * {
@@ -100,5 +133,5 @@ body {
 
 .btn--primary {
   background: var(--accent);
-  color: #0f1117;
+  color: #fff;
 }

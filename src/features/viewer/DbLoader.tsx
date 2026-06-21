@@ -18,6 +18,7 @@ import {
   pickFileFallback,
   tryReopenSaved,
 } from '../../data/dbLocator';
+import BrandMark from '../../components/BrandMark';
 import styles from './DbLoader.module.css';
 
 type LoadPhase = 'idle' | 'checking' | 'loading' | 'error';
@@ -102,43 +103,65 @@ export default function DbLoader({ onLoaded }: DbLoaderProps) {
   // -------------------------------------------------------------------------
   if (phase === 'checking') {
     return (
-      <div className={styles.loader}>
-        <p className={styles.hint}>Checking for saved database…</p>
+      <div className={`${styles.loader} ${styles.blueprint}`}>
+        <p className={styles.hint}>
+          <span className={styles.spinner} aria-hidden="true" />
+          Checking for saved database…
+        </p>
       </div>
     );
   }
 
   return (
-    <div className={styles.loader}>
+    <div className={`${styles.loader} ${styles.blueprint}`}>
       <div className={styles.card}>
-        <h2 className={styles.title}>Connect your VoidManager data</h2>
+        {/* Concentric-void-ring watermark (decorative) */}
+        <svg className={styles.ringMark} viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="78" className={styles.ringDash} />
+          <circle cx="100" cy="100" r="54" className={styles.ringDashSlow} />
+          <circle cx="100" cy="100" r="30" className={styles.ringSolid} />
+        </svg>
 
-        <p className={styles.desc}>
-          Open your VoidManager <code className={styles.path}>.db</code> file directly. You
-          can find it in <code className={styles.path}>%LOCALAPPDATA%\VoidManager</code>. No
-          file is uploaded; everything stays local.
-        </p>
+        <div className={styles.cardBody}>
+          {/* Brand glyph in a rounded badge — echoes the logo void ring */}
+          <span className={styles.glyphBadge}>
+            <BrandMark size={26} />
+          </span>
 
-        {/* Primary action */}
-        <button
-          className={styles.connectBtn}
-          onClick={handleConnect}
-          disabled={phase === 'loading'}
-        >
-          {phase === 'loading' ? 'Opening…' : 'Pick .db file'}
-        </button>
+          <span className={styles.eyebrow}>VoidManager · Data connection</span>
+          <h2 className={styles.title}>Connect your void database</h2>
 
-        {/* Hidden file input — Playwright drives this via setInputFiles (data-testid) */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".db"
-          data-testid="db-file-input"
-          style={{ display: 'none' }}
-          onChange={handleFileInput}
-        />
+          <p className={styles.desc}>
+            Open your VoidManager <code className={styles.path}>.db</code> file directly. You
+            can find it in <code className={styles.path}>%LOCALAPPDATA%\VoidManager</code>. No
+            file is uploaded — everything stays local in your browser.
+          </p>
 
-        {error && <p className={styles.errorMsg}>{error}</p>}
+          {/* Primary action */}
+          <button
+            type="button"
+            className={styles.connectBtn}
+            onClick={handleConnect}
+            disabled={phase === 'loading'}
+          >
+            {phase === 'loading' ? 'Opening…' : 'Connect .db file'}
+            <span className={styles.btnArrow} aria-hidden="true">→</span>
+          </button>
+
+          {/* Hidden file input — Playwright drives this via setInputFiles (data-testid) */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".db"
+            data-testid="db-file-input"
+            aria-label="Select VoidManager .db file"
+            title="Select VoidManager .db file"
+            className={styles.hiddenInput}
+            onChange={handleFileInput}
+          />
+
+          {error && <p className={styles.errorMsg}>{error}</p>}
+        </div>
       </div>
     </div>
   );

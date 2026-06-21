@@ -48,9 +48,9 @@
   bottom: 0.5rem;
   width: 260px;
   z-index: 9;
-  background: rgba(15, 17, 23, 0.92);
-  border: 1px solid var(--border, #334155);
-  border-radius: var(--radius, 6px);
+  background: rgba(14, 26, 40, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   overflow: hidden;
   backdrop-filter: blur(4px);
 }
@@ -60,19 +60,20 @@
 }
 
 .loadBtn {
-  background: rgba(30, 41, 59, 0.85);
-  color: var(--text, #f1f5f9);
-  border: 1px solid var(--border, #334155);
-  border-radius: var(--radius, 6px);
+  background: rgba(21, 39, 59, 0.85);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 0.3rem 0.75rem;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s;
   backdrop-filter: blur(4px);
 }
 
 .loadBtn:hover:not(:disabled) {
-  background: rgba(51, 65, 85, 0.9);
+  background: rgba(27, 49, 73, 0.95);
+  border-color: rgba(91, 159, 224, 0.45);
 }
 
 .loadBtn:disabled {
@@ -93,9 +94,9 @@
   bottom: 0.5rem;
   width: 260px;
   z-index: 9;
-  background: rgba(15, 17, 23, 0.92);
-  border: 1px solid var(--border, #334155);
-  border-radius: var(--radius, 6px);
+  background: rgba(14, 26, 40, 0.92);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   overflow: hidden;
   backdrop-filter: blur(4px);
 }
@@ -115,7 +116,7 @@
 
 .loadingBarFill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  background: linear-gradient(90deg, var(--blue), var(--green));
   transition: width 0.15s ease-out;
   border-radius: 0 2px 2px 0;
 }
@@ -131,11 +132,13 @@
 }
 
 .statusBadge {
-  font-size: 0.75rem;
-  color: var(--text-dim, #94a3b8);
-  background: rgba(30, 41, 59, 0.8);
-  border: 1px solid var(--border, #334155);
-  border-radius: var(--radius, 6px);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--text-dim);
+  background: rgba(21, 39, 59, 0.8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   padding: 0.2rem 0.55rem;
   backdrop-filter: blur(4px);
   white-space: nowrap;

@@ -15,9 +15,10 @@
 }
 
 .elementLabel {
+  font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 600;
-  color: #fbbf24; /* amber — matches IFC highlight colour */
+  color: #fbbf24; /* amber — matches the (unchanged) 3D IFC highlight colour */
   margin-bottom: 0.4rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -35,7 +36,7 @@
 }
 
 .row:hover {
-  background: rgba(51, 65, 85, 0.4);
+  background: rgba(50, 120, 200, 0.14);
 }
 
 .key {

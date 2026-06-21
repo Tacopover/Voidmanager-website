@@ -10,6 +10,7 @@
 
 import { useCallback, useState, useRef, useEffect, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
+import BrandMark from '../components/BrandMark';
 import DbLoader from '../features/viewer/DbLoader';
 import ThreeDViewer, { type ThreeDViewerHandle } from '../features/viewer/ThreeDViewer';
 import VoidGrid from '../features/voids/VoidGrid';
@@ -36,7 +37,10 @@ type ViewerPhase =
 function ViewerBar({ children }: { children?: ReactNode }) {
   return (
     <div className={styles.topBar}>
-      <span className={styles.brand}>VoidManager</span>
+      <span className={styles.brand}>
+        <BrandMark size={16} className={styles.brandGlyph} />
+        Void Manager
+      </span>
       <nav className={styles.nav}>
         <NavLink
           to="/"

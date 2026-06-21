@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import './Home.css';
 
+import BrandMark from '../components/BrandMark';
 import logoUrl from '../assets/home/logo.png';
 import hero3dUrl from '../assets/home/hero-3d.png';
 import shotTableUrl from '../assets/home/shot-table.png';
@@ -53,14 +54,9 @@ const IconWindow = () => (
 );
 
 // Window-bar brand mark — replaces the macOS "traffic-light" dots (Void Manager
-// ships on Windows / Revit, so the Apple controls were misleading). It echoes
-// the logo: a blue ring (structure) around a green core (the void).
-const WinGlyph = () => (
-  <svg className="win-glyph" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-    <circle cx="8" cy="8" r="6.4" fill="none" stroke="#4a8fd6" strokeWidth="1.6" />
-    <circle cx="8" cy="8" r="2.5" fill="#54c46a" />
-  </svg>
-);
+// ships on Windows / Revit, so the Apple controls were misleading). Shares the
+// BrandMark glyph with the Viewer: a blue ring (structure) around a green core.
+const WinGlyph = () => <BrandMark size={15} className="win-glyph" />;
 
 // ---------------------------------------------------------------------------
 // "Anatomy of a coordinated void" — signature diagram.

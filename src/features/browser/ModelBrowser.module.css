@@ -30,9 +30,12 @@
 }
 
 .row:hover {
-  background: rgba(56, 189, 248, 0.1);
+  background: rgba(50, 120, 200, 0.14);
 }
 
+/* Selected row stays amber: it mirrors the 3D element highlight (#fbbf24),
+   which is intentionally unchanged so the tree row and the highlighted
+   element in the canvas read as the same selection. */
 .rowSelected {
   background: rgba(251, 191, 36, 0.18);
 }
