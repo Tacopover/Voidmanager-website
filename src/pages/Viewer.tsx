@@ -8,7 +8,7 @@
  * M6: IndexedDB config caching — save/restore session without re-picking files.
  */
 
-import { useCallback, useState, useRef, useEffect, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, useRef, useEffect, type ReactNode } from 'react';
 import { NavLink } from 'react-router-dom';
 import BrandMark from '../components/BrandMark';
 import DbLoader from '../features/viewer/DbLoader';
@@ -16,6 +16,7 @@ import ThreeDViewer, { type ThreeDViewerHandle } from '../features/viewer/ThreeD
 import VoidGrid from '../features/voids/VoidGrid';
 import { createLocalRepository } from '../data/sqlEngine';
 import type { VoidRepository, VoidRow, ProjectSummary } from '../data/VoidRepository';
+import type { ApprovalStatus } from '../data/schema';
 import { saveConfig, getMostRecent } from '../features/config/configStore';
 import { clear as clearSelection } from '../store/selectionStore';
 import styles from './Viewer.module.css';
@@ -77,6 +78,27 @@ export default function Viewer() {
   const [voids, setVoids] = useState<VoidRow[]>([]);
   const [voidsLoading, setVoidsLoading] = useState(false);
   const [voidsError, setVoidsError] = useState<string | null>(null);
+
+  // In-memory status overrides from datagrid edits (not written to .db yet).
+  const [dirtyStatuses, setDirtyStatuses] = useState<Map<number, ApprovalStatus>>(() => new Map());
+  // Reset overrides whenever the base void dataset changes (project switch / reload).
+  useEffect(() => { setDirtyStatuses(new Map()); }, [voids]);
+
+  const handleStatusChange = useCallback((id: number, status: ApprovalStatus) => {
+    setDirtyStatuses((prev) => new Map(prev).set(id, status));
+  }, []);
+
+  // Apply dirty overrides on top of the DB voids before handing to the 3D viewer.
+  const effectiveVoids = useMemo(
+    () =>
+      dirtyStatuses.size === 0
+        ? voids
+        : voids.map((v) => {
+            const s = dirtyStatuses.get(v.id);
+            return s != null ? { ...v, status: s } : v;
+          }),
+    [voids, dirtyStatuses],
+  );
 
   // Inline error banner for DB-load failures (replaces alert())
   const [dbError, setDbError] = useState<string | null>(null);
@@ -438,7 +460,7 @@ export default function Viewer() {
 
       {/* 3D viewer — M2 Stage B2 (dominant pane, takes remaining height) */}
       <div className={styles.threeDPane}>
-        <ThreeDViewer ref={viewerRef} voids={voids} />
+        <ThreeDViewer ref={viewerRef} voids={effectiveVoids} />
       </div>
 
       {/* Draggable divider — resize the 3D/grid split */}
@@ -479,6 +501,7 @@ export default function Viewer() {
             loading={voidsLoading}
             includeClosed={includeClosed}
             onIncludeClosedChange={(v) => void handleIncludeClosedChange(v)}
+            onStatusChange={handleStatusChange}
           />
         )}
       </div>

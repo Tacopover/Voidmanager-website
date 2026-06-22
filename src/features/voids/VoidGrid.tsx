@@ -366,6 +366,8 @@ export interface VoidGridProps {
   loading: boolean;
   includeClosed: boolean;
   onIncludeClosedChange: (v: boolean) => void;
+  /** Called whenever a void's status is changed in-grid (inline or bulk). */
+  onStatusChange?: (id: number, status: ApprovalStatus) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -377,6 +379,7 @@ export default function VoidGrid({
   loading,
   includeClosed,
   onIncludeClosedChange,
+  onStatusChange,
 }: VoidGridProps) {
   const gridRef = useRef<AgGridReact<VoidRow>>(null);
   const columnDefs = useMemo(() => buildColumnDefs(), []);
@@ -459,11 +462,14 @@ export default function VoidGrid({
     }
   }, [selection]);
 
-  // M14: mark a void dirty when its status is edited inline.
+  // M14: mark a void dirty when its status is edited inline; propagate to parent.
   const onCellValueChanged = useCallback((e: CellValueChangedEvent<VoidRow>) => {
     const id = e.data?.id;
-    if (id != null) setDirtyIds((prev) => mergeDirty(prev, [id]));
-  }, []);
+    if (id != null) {
+      setDirtyIds((prev) => mergeDirty(prev, [id]));
+      onStatusChange?.(id, e.newValue as ApprovalStatus);
+    }
+  }, [onStatusChange]);
 
   // M14: bulk-apply a status to every selected row (in-memory only).
   const handleBulkStatus = useCallback((status: ApprovalStatus) => {

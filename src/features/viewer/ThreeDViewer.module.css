@@ -1,21 +1,40 @@
-/* ThreeDViewer — 3D canvas + toolbar overlay */
+/* ThreeDViewer — 3-column layout: browser | canvas | properties */
 
 .viewerWrapper {
   position: relative;
   width: 100%;
   height: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   background: var(--bg-elev, #1e293b);
   overflow: hidden;
 }
 
-/* Three.js canvas container — fills the wrapper */
+/* Model browser panel — left fixed column */
+.browserDrawer {
+  flex: 0 0 260px;
+  min-width: 0;
+  height: 100%;
+  background: rgba(14, 26, 40, 0.97);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Canvas column — fills the space between the two panels */
+.canvasColumn {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Three.js canvas container — fills the canvas column */
 .canvas {
   flex: 1;
   min-height: 0;
   width: 100%;
-  /* Ensure Three.js canvas fills this div */
 }
 
 /* canvas element injected by Three.js / SimpleRenderer */
@@ -26,7 +45,7 @@
   outline: none;
 }
 
-/* Toolbar floats at the top of the 3D pane */
+/* Toolbar floats at the top of the canvas column */
 .toolbar {
   position: absolute;
   top: 0.5rem;
@@ -37,22 +56,7 @@
   align-items: center;
   gap: 0.5rem;
   z-index: 10;
-  pointer-events: none; /* let clicks through to canvas by default */
-}
-
-/* Model browser drawer — left side, below the toolbar row */
-.browserDrawer {
-  position: absolute;
-  top: 2.75rem;
-  left: 0.5rem;
-  bottom: 0.5rem;
-  width: 260px;
-  z-index: 9;
-  background: rgba(14, 26, 40, 0.92);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
 .toolbar > * {
@@ -68,6 +72,7 @@
   font-size: 0.8rem;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 
@@ -86,19 +91,14 @@
   display: none;
 }
 
-/* Property browser drawer — right side, below the toolbar row */
+/* Property browser panel — right fixed column */
 .propertyDrawer {
-  position: absolute;
-  top: 2.75rem;
-  right: 0.5rem;
-  bottom: 0.5rem;
-  width: 260px;
-  z-index: 9;
-  background: rgba(14, 26, 40, 0.92);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  flex: 0 0 260px;
+  min-width: 0;
+  height: 100%;
+  background: rgba(14, 26, 40, 0.97);
+  border-left: 1px solid var(--border);
   overflow: hidden;
-  backdrop-filter: blur(4px);
 }
 
 /* Loading progress bar — thin strip at top edge during IFC load */
@@ -126,6 +126,13 @@
   100% { transform: translateX(400%); }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .loadingBarIndeterminate {
+    animation: none;
+    width: 100%;
+  }
+}
+
 .loadingBarIndeterminate {
   width: 25%;
   animation: loadingSlide 1.4s ease-in-out infinite;
@@ -140,6 +147,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.2rem 0.55rem;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   white-space: nowrap;
 }

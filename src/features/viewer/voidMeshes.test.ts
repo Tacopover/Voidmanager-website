@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildVoidMeshes, setVoidHighlight } from './voidMeshes';
+import { buildVoidMeshes, setVoidHighlight, STATUS_VOID_COLORS } from './voidMeshes';
 import type { VoidRow } from '../../data/VoidRepository';
 
 // ---------------------------------------------------------------------------
@@ -194,11 +194,35 @@ describe('setVoidHighlight', () => {
     expect((mesh.material as THREE.MeshStandardMaterial).color.getHex()).toBe(0xfbbf24);
   });
 
-  it('restores a normal-looking material when toggled off', () => {
+  it('restores the per-status base colour when toggled off (concept → sky)', () => {
+    // BASE has status: 'concept' → STATUS_VOID_COLORS['concept'] = 0x38bdf8
     const { byVoidId } = buildVoidMeshes([makeCircle({ id: 2 })]);
     const mesh = byVoidId.get(2)!;
     setVoidHighlight(mesh, true);
     setVoidHighlight(mesh, false);
     expect((mesh.material as THREE.MeshStandardMaterial).color.getHex()).toBe(0x38bdf8);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// STATUS_VOID_COLORS — per-status palette
+// ---------------------------------------------------------------------------
+
+describe('STATUS_VOID_COLORS', () => {
+  it('two different statuses produce two different mesh colours', () => {
+    const conceptVoid = makeCircle({ id: 1, status: 'concept' });
+    const rejectedVoid = makeCircle({ id: 2, status: 'rejected' });
+    const { byVoidId } = buildVoidMeshes([conceptVoid, rejectedVoid]);
+
+    const conceptColor = (byVoidId.get(1)!.material as THREE.MeshStandardMaterial).color.getHex();
+    const rejectedColor = (byVoidId.get(2)!.material as THREE.MeshStandardMaterial).color.getHex();
+
+    expect(conceptColor).toBe(STATUS_VOID_COLORS['concept']);
+    expect(rejectedColor).toBe(STATUS_VOID_COLORS['rejected']);
+    expect(conceptColor).not.toBe(rejectedColor);
+  });
+
+  it('approved and rejected use distinct colours', () => {
+    expect(STATUS_VOID_COLORS['approved']).not.toBe(STATUS_VOID_COLORS['rejected']);
   });
 });

@@ -172,8 +172,7 @@ test.describe('PLAN_v2 features (fixture-backed)', () => {
     await page.getByTestId('ifc-file-input').setInputFiles(IFC_FIXTURE);
     await expect(page.getByTestId('ifc-status')).toContainText('Loaded', { timeout: 120_000 });
 
-    // Open the browser drawer.
-    await page.getByTestId('toggle-browser').click();
+    // Browser panel is always visible — no toggle needed.
     await expect(page.getByTestId('model-browser')).toBeVisible();
     await expect(page.getByTestId('model-browser-node').first()).toBeVisible({ timeout: 20_000 });
 

@@ -9,10 +9,10 @@ test('home renders and links to the viewer', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /find every clash/i })).toBeVisible();
 
-  // Header nav carries an exact "Viewer" link → /#/viewer (HashRouter).
-  await page.getByRole('link', { name: 'Viewer', exact: true }).click();
-  await expect(page).toHaveURL(/#\/viewer$/);
-  await expect(page.getByRole('heading', { name: 'Viewer' })).toBeVisible();
+  // Header nav "Viewer" link opens in a new tab (target=_blank) pointing to /#/viewer.
+  const viewerLink = page.getByRole('link', { name: 'Viewer', exact: true });
+  await expect(viewerLink).toHaveAttribute('target', '_blank');
+  await expect(viewerLink).toHaveAttribute('href', /#\/viewer$/);
 
   expect(errors, `console errors: ${errors.join('\n')}`).toEqual([]);
 });

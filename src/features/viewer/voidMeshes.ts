@@ -13,8 +13,9 @@
  * frame once a shared origin is established.
  */
 
-import * as THREE from 'three';
-import type { VoidRow } from '../../data/VoidRepository';
+import * as THREE from "three";
+import type { VoidRow } from "../../data/VoidRepository";
+import type { ApprovalStatus } from "../../data/schema";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -24,8 +25,8 @@ import type { VoidRow } from '../../data/VoidRepository';
  * Garbage guard: DB rows with legacy ProjectStartUp data have location /
  * size values around 1e20 – 1e21.  Anything beyond these limits is skipped.
  */
-const MAX_SIZE_MM = 100_000;   // 100 m in mm
-const MAX_COORD_MM = 1e7;      // 10 km in mm
+const MAX_SIZE_MM = 100_000; // 100 m in mm
+const MAX_COORD_MM = 1e7; // 10 km in mm
 
 /** Default scale: Revit internal mm → scene metres. */
 const DEFAULT_SCALE = 0.001;
@@ -34,28 +35,48 @@ const DEFAULT_SCALE = 0.001;
 const FALLBACK_THICKNESS_MM = 300;
 
 // ---------------------------------------------------------------------------
+// Status colours
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-status void mesh colours. Edit here to change the 3D palette.
+ * Semantics: greens = approved/done, red = rejected, blues/purple = pending.
+ */
+export const STATUS_VOID_COLORS: Record<ApprovalStatus, number> = {
+  concept: 0x38bdf8, // sky-400   — neutral blue (default-ish)
+  "open for review": 0xff9734, // orange-400 — distinguishable orange
+  approved: 0x4ade80, // green-400
+  rejected: 0xf87171, // red-400
+  "released for execution": 0x34d399, // emerald-400 — stronger green
+  executed: 0xa3e635, // lime-400   — warm green, distinct from emerald
+};
+
+// ---------------------------------------------------------------------------
 // Materials
 // ---------------------------------------------------------------------------
 
-/** Accent teal — semi-transparent, readable against the dark scene background. */
-const normalMaterial = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(0x38bdf8),   // sky-400
-  emissive: new THREE.Color(0x0c4a6e),
-  transparent: true,
-  opacity: 0.5,
-  side: THREE.DoubleSide,
-  depthWrite: false,
-});
-
-/** Highlight: bright amber, fully opaque. */
+/** Highlight: bright amber — consistent regardless of status. */
 const highlightMaterial = new THREE.MeshStandardMaterial({
-  color: new THREE.Color(0xfbbf24),   // amber-400
+  color: new THREE.Color(0xfbbf24), // amber-400
   emissive: new THREE.Color(0x78350f),
   transparent: true,
   opacity: 0.85,
   side: THREE.DoubleSide,
   depthWrite: false,
 });
+
+/** Build a per-status base material (cloned per mesh). */
+function makeBaseMaterial(hex: number): THREE.MeshStandardMaterial {
+  const color = new THREE.Color(hex);
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive: color.clone().multiplyScalar(0.18),
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -106,7 +127,7 @@ function isGarbage(v: VoidRow): boolean {
     return true;
   }
 
-  if (v.type === 'circle') {
+  if (v.type === "circle") {
     const d = v.sizeMm.diameter;
     if (d != null && d > MAX_SIZE_MM) return true;
   } else {
@@ -136,7 +157,7 @@ function isGarbage(v: VoidRow): boolean {
  * width and height without the explicit up-pin.
  */
 function orientTo(
-  meshPrimaryAxis: 'Y' | 'Z',
+  meshPrimaryAxis: "Y" | "Z",
   direction: { x: number; y: number; z: number } | null,
 ): THREE.Quaternion {
   if (!direction) return new THREE.Quaternion();
@@ -145,7 +166,7 @@ function orientTo(
   if (dir.length() < 1e-6) return new THREE.Quaternion();
   dir.normalize();
 
-  if (meshPrimaryAxis === 'Y') {
+  if (meshPrimaryAxis === "Y") {
     // CylinderGeometry: axis is local +Y; circular cross-section so roll is irrelevant.
     const q = new THREE.Quaternion();
     q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
@@ -158,9 +179,10 @@ function orientTo(
   // the arbitrary roll swaps the visual width and height dimensions.
   const revitUp = new THREE.Vector3(0, 0, 1);
   // For floor/ceiling voids (dir ∥ revitUp), fall back to Revit Y as up hint.
-  const upHint = Math.abs(revitUp.dot(dir)) > 1 - 1e-6
-    ? new THREE.Vector3(0, 1, 0)
-    : revitUp;
+  const upHint =
+    Math.abs(revitUp.dot(dir)) > 1 - 1e-6
+      ? new THREE.Vector3(0, 1, 0)
+      : revitUp;
 
   // right = upHint × dir; re-derive up = dir × right for a proper right-handed basis.
   const localRight = new THREE.Vector3().crossVectors(upHint, dir).normalize();
@@ -190,7 +212,7 @@ export function buildVoidMeshes(
   const offset = opts.offset ?? new THREE.Vector3(0, 0, 0);
 
   const group = new THREE.Group();
-  group.name = 'void-meshes';
+  group.name = "void-meshes";
 
   // Revit internal coordinates are Z-up; the three.js scene is Y-up. Rotate the
   // whole group -90° about X so voids stand upright (Revit Z → scene Y). This
@@ -211,14 +233,15 @@ export function buildVoidMeshes(
       continue;
     }
 
-    const thickness = v.thicknessMm && v.thicknessMm > 0
-      ? v.thicknessMm
-      : FALLBACK_THICKNESS_MM;
+    const thickness =
+      v.thicknessMm && v.thicknessMm > 0
+        ? v.thicknessMm
+        : FALLBACK_THICKNESS_MM;
 
     let geometry: THREE.BufferGeometry;
-    let meshPrimaryAxis: 'Y' | 'Z';
+    let meshPrimaryAxis: "Y" | "Z";
 
-    if (v.type === 'circle') {
+    if (v.type === "circle") {
       const diameter = v.sizeMm.diameter;
       if (!diameter || diameter <= 0) continue; // no valid size
 
@@ -226,7 +249,7 @@ export function buildVoidMeshes(
       const depth = thickness * scale;
       // CylinderGeometry(radiusTop, radiusBottom, height, segments)
       geometry = new THREE.CylinderGeometry(r, r, depth, 32);
-      meshPrimaryAxis = 'Y'; // cylinder axis is +Y
+      meshPrimaryAxis = "Y"; // cylinder axis is +Y
     } else {
       const w = v.sizeMm.width;
       const h = v.sizeMm.height;
@@ -235,11 +258,12 @@ export function buildVoidMeshes(
       const depth = thickness * scale;
       // BoxGeometry(width, height, depth) — depth mapped to extrusion axis (+Z)
       geometry = new THREE.BoxGeometry(w * scale, h * scale, depth);
-      meshPrimaryAxis = 'Z'; // box extrusion is +Z
+      meshPrimaryAxis = "Z"; // box extrusion is +Z
     }
 
-    // Clone material so individual meshes can be toggled independently
-    const mat = normalMaterial.clone();
+    // Per-status colour; fall back to sky if status is somehow unrecognised.
+    const colorHex = STATUS_VOID_COLORS[v.status as ApprovalStatus] ?? 0x38bdf8;
+    const mat = makeBaseMaterial(colorHex);
     const mesh = new THREE.Mesh(geometry, mat);
 
     // Position (mm → m)
@@ -252,8 +276,9 @@ export function buildVoidMeshes(
     // Orientation
     mesh.quaternion.copy(orientTo(meshPrimaryAxis, v.direction));
 
-    // Tag for reverse lookup
+    // Tag for reverse lookup and highlight restore.
     mesh.userData.voidId = v.id;
+    mesh.userData.baseMaterial = mat;
     mesh.name = `void-${v.id}`;
 
     group.add(mesh);
@@ -271,8 +296,16 @@ export function buildVoidMeshes(
  * Toggle the highlight material on a single void mesh.
  *
  * @param mesh  The mesh returned by `buildVoidMeshes`.
- * @param on    true → highlight material; false → normal material.
+ * @param on    true → amber highlight; false → restore per-status base material.
  */
 export function setVoidHighlight(mesh: THREE.Mesh, on: boolean): void {
-  mesh.material = on ? highlightMaterial.clone() : normalMaterial.clone();
+  if (on) {
+    mesh.material = highlightMaterial.clone();
+  } else {
+    const base = mesh.userData.baseMaterial;
+    mesh.material =
+      base instanceof THREE.MeshStandardMaterial
+        ? base
+        : makeBaseMaterial(0x38bdf8);
+  }
 }

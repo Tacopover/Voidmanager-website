@@ -76,12 +76,10 @@ const ThreeDViewer = forwardRef<ThreeDViewerHandle, ThreeDViewerProps>(
     const [voidMeshCount, setVoidMeshCount] = useState(0);
     // Tracks whether the WorldController is ready to accept setVoids calls.
     const [worldReady, setWorldReady] = useState(false);
-    // M13: model browser tree + drawer open state.
+    // M13: model browser tree.
     const [trees, setTrees] = useState<TreeNode[]>([]);
-    const [browserOpen, setBrowserOpen] = useState(false);
 
-    // Property browser: open state + fetched attributes for the selected element.
-    const [propertyBrowserOpen, setPropertyBrowserOpen] = useState(false);
+    // Property browser: fetched attributes for the selected element.
     const [elementProperties, setElementProperties] = useState<Record<string, string> | null>(null);
     const [propertiesLoading, setPropertiesLoading] = useState(false);
     const [sectionActive, setSectionActive] = useState(false);
@@ -381,159 +379,134 @@ const ThreeDViewer = forwardRef<ThreeDViewerHandle, ThreeDViewerProps>(
     // -------------------------------------------------------------------------
     return (
       <div className={styles.viewerWrapper}>
-        {/* IFC load progress bar — sits at the very top edge of the viewer */}
-        {status.tag === 'loading' && (
-          <div className={styles.loadingBar} aria-hidden="true">
-            <div
-              className={`${styles.loadingBarFill}${status.percent === 0 ? ` ${styles.loadingBarIndeterminate}` : ''}`}
-              style={status.percent > 0 ? { width: `${status.percent}%` } : undefined}
-            />
-          </div>
-        )}
-
-        {/* Three.js will append a <canvas> here. Clicks pick void meshes / IFC elements. */}
-        <div
-          ref={containerRef}
-          className={styles.canvas}
-          onClick={(e) => void handleCanvasClick(e)}
-        />
-
-        {/* M13: model browser — left drawer overlaying the canvas */}
-        {browserOpen && (
-          <div className={styles.browserDrawer} data-testid="model-browser-drawer">
-            <ModelBrowser trees={trees} />
-          </div>
-        )}
-
-        {/* Property browser — right drawer overlaying the canvas */}
-        {propertyBrowserOpen && (
-          <div className={styles.propertyDrawer} data-testid="property-browser-drawer">
-            <PropertyBrowser
-              properties={elementProperties}
-              loading={propertiesLoading}
-              elementLabel={elementProperties?.Name}
-            />
-          </div>
-        )}
-
-        {/* Overlay toolbar */}
-        <div className={styles.toolbar}>
-          {/* Load IFC button */}
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={handleLoadButtonClick}
-            disabled={isLoading || !canLoad}
-            title="Load a local .ifc file into the 3D viewer"
-          >
-            {status.tag === 'loading' ? `Loading… ${status.percent.toFixed(0)}%` : 'Load IFC'}
-          </button>
-
-          {/* Visible, reachable file input for Playwright E2E + non-button access */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".ifc"
-            data-testid="ifc-file-input"
-            className={styles.fileInput}
-            onChange={(e) => void handleFileInputChange(e)}
-            aria-label="Select IFC file"
-          />
-
-          {/* Camera framing */}
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={handleZoomToSelection}
-            disabled={selection.refs.length === 0}
-            data-testid="zoom-to-selection"
-            title="Zoom the camera to fit the current selection"
-          >
-            Zoom to
-          </button>
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={handleZoomToFit}
-            data-testid="zoom-to-fit"
-            title="Zoom the camera to fit all visible objects"
-          >
-            Zoom to Fit
-          </button>
-
-          {/* Section plane */}
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={handleSection}
-            disabled={selectedVoidIds.length === 0}
-            data-testid="section-plane"
-            title="Clip to a horizontal plane at the top of the selected voids"
-          >
-            Section
-          </button>
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={handleClearSection}
-            disabled={!sectionActive}
-            data-testid="clear-section-plane"
-            title="Remove the active section plane"
-          >
-            Clear Section
-          </button>
-
-          {/* Model browser toggle (M13) */}
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={() => setBrowserOpen((o) => !o)}
-            data-testid="toggle-browser"
-            aria-pressed={browserOpen ? 'true' : 'false'}
-            title="Toggle the model browser (spatial tree)"
-          >
-            {browserOpen ? 'Hide Browser' : 'Browser'}
-          </button>
-
-          {/* Property browser toggle */}
-          <button
-            type="button"
-            className={styles.loadBtn}
-            onClick={() => setPropertyBrowserOpen((o) => !o)}
-            data-testid="toggle-properties"
-            aria-pressed={propertyBrowserOpen ? 'true' : 'false'}
-            title="Toggle the IFC element property browser"
-          >
-            {propertyBrowserOpen ? 'Hide Properties' : 'Properties'}
-          </button>
-
-          {/* Status indicator */}
-          <span
-            className={`${styles.statusBadge} ${status.tag === 'error' ? styles.statusError : ''}`}
-            data-testid="ifc-status"
-          >
-            {statusText()}
-          </span>
-
-          {/* Void mesh + selection status for E2E assertions */}
-          <span className={styles.statusBadge} data-testid="void-mesh-status">
-            {`voids: ${voidMeshCount} · selected: ${selection.refs.length}`}
-          </span>
-
-          {/* Unified selection breakdown for E2E assertions */}
-          <span className={styles.statusBadge} data-testid="selection-status">
-            {`sel: ${selection.refs.length} (v:${
-              selection.refs.filter((r) => r.kind === 'void').length
-            } e:${selection.refs.filter((r) => r.kind === 'element').length})`}
-          </span>
+        {/* Model browser — left fixed panel, always visible */}
+        <div className={styles.browserDrawer} data-testid="model-browser-drawer">
+          <ModelBrowser trees={trees} />
         </div>
 
-        {/* Error overlay (in addition to status badge) */}
-        {status.tag === 'error' && (
-          <div className={styles.errorOverlay}>
-            <span>{status.message}</span>
+        {/* Canvas column — fills space between the two panels */}
+        <div className={styles.canvasColumn}>
+          {/* IFC load progress bar */}
+          {status.tag === 'loading' && (
+            <div className={styles.loadingBar} aria-hidden="true">
+              <div
+                className={`${styles.loadingBarFill}${status.percent === 0 ? ` ${styles.loadingBarIndeterminate}` : ''}`}
+                style={status.percent > 0 ? { width: `${status.percent}%` } : undefined}
+              />
+            </div>
+          )}
+
+          {/* Three.js will append a <canvas> here. Clicks pick void meshes / IFC elements. */}
+          <div
+            ref={containerRef}
+            className={styles.canvas}
+            onClick={(e) => void handleCanvasClick(e)}
+          />
+
+          {/* Toolbar floats over the canvas column */}
+          <div className={styles.toolbar}>
+            {/* Load IFC button */}
+            <button
+              type="button"
+              className={styles.loadBtn}
+              onClick={handleLoadButtonClick}
+              disabled={isLoading || !canLoad}
+              title="Load a local .ifc file into the 3D viewer"
+            >
+              {status.tag === 'loading' ? `Loading… ${status.percent.toFixed(0)}%` : 'Load IFC'}
+            </button>
+
+            {/* Visible, reachable file input for Playwright E2E + non-button access */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".ifc"
+              data-testid="ifc-file-input"
+              className={styles.fileInput}
+              onChange={(e) => void handleFileInputChange(e)}
+              aria-label="Select IFC file"
+            />
+
+            {/* Camera framing */}
+            <button
+              type="button"
+              className={styles.loadBtn}
+              onClick={handleZoomToSelection}
+              disabled={selection.refs.length === 0}
+              data-testid="zoom-to-selection"
+              title="Zoom the camera to fit the current selection"
+            >
+              Zoom to
+            </button>
+            <button
+              type="button"
+              className={styles.loadBtn}
+              onClick={handleZoomToFit}
+              data-testid="zoom-to-fit"
+              title="Zoom the camera to fit all visible objects"
+            >
+              Zoom to Fit
+            </button>
+
+            {/* Section plane */}
+            <button
+              type="button"
+              className={styles.loadBtn}
+              onClick={handleSection}
+              disabled={selectedVoidIds.length === 0}
+              data-testid="section-plane"
+              title="Clip to a horizontal plane at the top of the selected voids"
+            >
+              Section
+            </button>
+            <button
+              type="button"
+              className={styles.loadBtn}
+              onClick={handleClearSection}
+              disabled={!sectionActive}
+              data-testid="clear-section-plane"
+              title="Remove the active section plane"
+            >
+              Clear Section
+            </button>
+
+            {/* Status indicator */}
+            <span
+              className={`${styles.statusBadge} ${status.tag === 'error' ? styles.statusError : ''}`}
+              data-testid="ifc-status"
+            >
+              {statusText()}
+            </span>
+
+            {/* Void mesh + selection status for E2E assertions */}
+            <span className={styles.statusBadge} data-testid="void-mesh-status">
+              {`voids: ${voidMeshCount} · selected: ${selection.refs.length}`}
+            </span>
+
+            {/* Unified selection breakdown for E2E assertions */}
+            <span className={styles.statusBadge} data-testid="selection-status">
+              {`sel: ${selection.refs.length} (v:${
+                selection.refs.filter((r) => r.kind === 'void').length
+              } e:${selection.refs.filter((r) => r.kind === 'element').length})`}
+            </span>
           </div>
-        )}
+
+          {/* Error overlay (in addition to status badge) */}
+          {status.tag === 'error' && (
+            <div className={styles.errorOverlay}>
+              <span>{status.message}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Property browser — right fixed panel, always visible */}
+        <div className={styles.propertyDrawer} data-testid="property-browser-drawer">
+          <PropertyBrowser
+            properties={elementProperties}
+            loading={propertiesLoading}
+            elementLabel={elementProperties?.Name}
+          />
+        </div>
       </div>
     );
   }

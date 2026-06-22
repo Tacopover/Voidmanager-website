@@ -294,7 +294,7 @@ export default function Home() {
             <div className="nav-links">
               <a href="#features" onClick={scrollToId('features')}>Features</a>
               <a href="#how" onClick={scrollToId('how')}>How it works</a>
-              <Link to="/viewer">Viewer</Link>
+              <a href={`${import.meta.env.BASE_URL}#/viewer`} target="_blank" rel="noopener noreferrer">Viewer</a>
               <a href="#about" onClick={scrollToId('about')}>About</a>
               <a href="#quote" onClick={scrollToId('quote')}>Request a quote</a>
             </div>
@@ -327,9 +327,9 @@ export default function Home() {
           </div>
           <div className="heroB__avail">
             <span className="avail-pill"><span className="led" /> Available as a Revit plugin</span>
-            <Link className="avail-pill" to="/viewer">
+            <a className="avail-pill" href={`${import.meta.env.BASE_URL}#/viewer`} target="_blank" rel="noopener noreferrer">
               <span className="led" style={{ background: 'var(--blue)' }} /> 3D web viewer — open it →
-            </Link>
+            </a>
           </div>
         </div>
 
@@ -571,7 +571,7 @@ export default function Home() {
               <h4>Product</h4>
               <a href="#features" onClick={scrollToId('features')}>Features</a>
               <a href="#how" onClick={scrollToId('how')}>How it works</a>
-              <Link to="/viewer">3D Viewer</Link>
+              <a href={`${import.meta.env.BASE_URL}#/viewer`} target="_blank" rel="noopener noreferrer">3D Viewer</a>
               <a href="#quote" onClick={scrollToId('quote')}>Request a quote</a>
               <a href="#" onClick={(e) => e.preventDefault()}>Pricing <span className="soon">Soon</span></a>
             </div>
