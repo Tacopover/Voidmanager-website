@@ -10,18 +10,21 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "sync:viewer-assets": "node scripts/sync-viewer-assets.mjs",
+    "frag": "node scripts/frag-tool.mjs"
   },
   "dependencies": {
-    "@thatopen/components": "^3.4.6",
-    "@thatopen/fragments": "^3.4.5",
+    "@thatopen/components": "3.6.0",
+    "@thatopen/fragments": "3.6.1",
     "ag-grid-community": "^35.3.1",
     "ag-grid-react": "^35.3.1",
+    "camera-controls": "3.1.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.16.0",
     "sql.js": "^1.14.1",
-    "three": "^0.184.0",
+    "three": "0.184.0",
     "web-ifc": "0.0.77"
   },
   "devDependencies": {
@@ -30,7 +33,7 @@
     "@types/react": "^19.2.16",
     "@types/react-dom": "^19.2.3",
     "@types/sql.js": "^1.4.11",
-    "@types/three": "^0.184.1",
+    "@types/three": "0.184.1",
     "@vitejs/plugin-react": "^6.0.2",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",

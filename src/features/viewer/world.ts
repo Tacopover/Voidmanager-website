@@ -26,6 +26,7 @@ import type { IfcIndex } from '../../lib/ifcIndex';
 import type { SelectionRef } from '../../store/selectionStore';
 import type { RawSpatialNode } from '../browser/spatialTree';
 import * as FRAGS from '@thatopen/fragments';
+import { addMissingElementClasses } from './importerClasses';
 
 export interface LoadedModel {
   /** The fragments model id (set as the `name` parameter to ifcLoader.load) */
@@ -358,6 +359,7 @@ export async function createWorldController(container: HTMLDivElement): Promise<
     // frame (offsets computed from the first model are reused for every subsequent
     // model). Required for federated IFC files from the same project to overlay.
     const model = await ifcLoader.load(bytes, true, name, {
+      instanceCallback: addMissingElementClasses,
       processData: {
         progressCallback: (percent: number) => {
           onProgress?.({ percent });
